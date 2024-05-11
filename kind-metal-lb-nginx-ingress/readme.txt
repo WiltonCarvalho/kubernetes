@@ -14,12 +14,14 @@ kubectl -n metallb-system get ipaddresspools
 kubectl run httpd --image httpd:alpine --port 80 --labels app=httpd
 kubectl expose pod httpd --name=httpd --type=LoadBalancer
 
-kubectl run nginx --image nginx:alpine --port 80 --labels app=nginx
-kubectl expose pod nginx --name=nginx --type=LoadBalancer
-
 kubectl run registry --image registry:2 --port 5000 --labels app=registry
 kubectl expose pod registry --name=registry --type=LoadBalancer --port=80 --target-port=5000 --load-balancer-ip=172.31.255.201
 
+kubectl get svc
+
 curl -i http://registry.172.31.255.201.sslip.io
 
-kubectl get svc
+skopeo copy --dest-tls-verify=false docker://nginx:alpine docker://registry.172.31.255.201.sslip.io/nginx:alpine
+
+kubectl run nginx --image registry.172.31.255.201.sslip.io/nginx:alpine --port 80 --labels app=nginx
+kubectl expose pod nginx --name=nginx --type=LoadBalancer
