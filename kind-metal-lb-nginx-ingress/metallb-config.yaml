@@ -6,7 +6,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 172.31.255.1-172.31.255.250
+  - 172.31.255.1-172.31.255.254
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -14,5 +14,5 @@ metadata:
   name: l2advert
   namespace: metallb-system
 spec:
-   ipAddressPools:
-   - default
+  ipAddressPools:
+  - default
