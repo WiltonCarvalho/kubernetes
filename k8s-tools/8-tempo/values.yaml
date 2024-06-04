@@ -1,0 +1,26 @@
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    release: kube-prometheus-stack
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+storage:
+  trace:
+    backend: local
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+tempo:
+  # -- If true, Tempo will report anonymous usage data about the shape of a deployment to Grafana Labs
+  reportingEnabled: false
+  metricsGenerator:
+    # -- If true, enables Tempo's metrics generator (https://grafana.com/docs/tempo/next/metrics-generator/)
+    enabled: true
+    remoteWriteUrl: "http://prometheus-operated.monitoring.svc.cluster.local:9090/api/v1/write"

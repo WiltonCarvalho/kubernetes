@@ -1,0 +1,11 @@
+# kubectl apply -k dashboards
+configMapGenerator:
+- name: grafana-dashboards-custom-1
+  namespace: monitoring
+  files:
+  - SpringBoot-APM-Dashboard.json
+  - ingress-nginx.json
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"

@@ -1,0 +1,82 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-conf
+  labels:
+    app: opentelemetry
+    component: otel-collector-conf
+  namespace: otel
+data:
+  otel-collector-config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: ${env:MY_POD_IP}:4317
+          http:
+            endpoint: ${env:MY_POD_IP}:4318
+    processors:
+      filter/regexp1:
+        # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/filterprocessor/README.md
+        spans:
+          exclude:
+            match_type: regexp
+            attributes:
+            - key: http.target
+              value: "/actuator/*"
+      filter/regexp2:
+        spans:
+          exclude:
+            match_type: regexp
+            span_names:
+            - "^.*OperationHandler.*$"
+      filter/regexp3:
+        spans:
+          exclude:
+            match_type: regexp
+            span_names:
+            - "^.*VersionController.*$"
+      filter/regexp4:
+        spans:
+          exclude:
+            match_type: regexp
+            span_names:
+            - "^.*HealthMvcEndpoint.*$"
+      filter/regexp5:
+        spans:
+          exclude:
+            match_type: regexp
+            span_names:
+            - "^.*PrometheusScrapeMvcEndpoint.*$"
+      filter/strict:
+        spans:
+          exclude:
+            match_type: strict
+            attributes:
+            - key: http.target
+              value: /version
+      batch:
+      memory_limiter:
+        # 80% of maximum memory up to 2G
+        limit_mib: 1500
+        # 25% of limit up to 2G
+        spike_limit_mib: 512
+        check_interval: 5s
+    extensions:
+      zpages: {}
+      memory_ballast:
+        # Memory Ballast size should be max 1/3 to 1/2 of memory.
+        size_mib: 683
+    exporters:
+      otlp:
+        endpoint: "http://tempo.tempo:4317" # Replace with a real endpoint.
+        tls:
+          insecure: true
+    service:
+      extensions: [zpages, memory_ballast]
+      pipelines:
+        traces/1:
+          receivers: [otlp]
+          processors: [memory_limiter, batch, filter/regexp1, filter/regexp2, filter/regexp3, filter/regexp4, filter/regexp5, filter/strict]
+          exporters: [otlp]

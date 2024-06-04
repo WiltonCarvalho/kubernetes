@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: demo-app
+    # Prometheus Service Monitor Label
+    serviceMonitor: actuator
+  name: demo-app
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  - name: management
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app: demo-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: demo-app
+  name: demo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+      - env:
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-collector.otel:4317
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: grpc
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: "true"
+        - name: OTEL_TRACES_EXPORTER
+          value: otlp
+        - name: OTEL_METRICS_EXPORTER
+          value: none
+        - name: OTEL_LOGS_EXPORTER
+          value: none
+        - name: OTEL_TRACES_SAMPLER
+          value: always_on
+        # - name: OTEL_TRACES_SAMPLER
+        #   value: traceidratio
+        # - name: OTEL_TRACES_SAMPLER_ARG
+        #   value: "0.25"
+        - name: OTEL_SERVICE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['app']
+        - name: JAVA_TOOL_OPTIONS
+          value: -javaagent:/shared/opentelemetry-javaagent.jar
+        - name: logging_pattern_level
+          value: '%prefix(%mdc{trace_id:-0}) %5p'
+        - name: server_port
+          value: "8080"
+        - name: management_server_port
+          value: "8081"
+        - name: management_endpoints_web_basePath
+          value: /actuator
+        - name: management_endpoints_web_exposure_include
+          value: info,health,prometheus
+        - name: management_endpoint_health_probes_enabled
+          value: "true"
+        - name: management_endpoint_health_showDetails
+          value: never
+        - name: management_health_defaults_enabled
+          value: "false"
+        image: localhost:32000/demo-app:latest
+        imagePullPolicy: Always
+        name: spring-app
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8081
+          name: management
+          protocol: TCP
+        startupProbe:
+          failureThreshold: 12
+          httpGet:
+            path: /actuator/health
+            port: management
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /actuator/health
+            port: management
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /actuator/health
+            port: management
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 256m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsGroup: 0
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /shared
+          name: shared
+      initContainers:
+      - args:
+        - -c
+        - |
+          OTEL_VERSION=v1.27.0
+          curl -fsSL https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/$OTEL_VERSION/opentelemetry-javaagent.jar \
+          -o /shared/opentelemetry-javaagent.jar
+        command:
+        - /bin/sh
+        image: quay.io/curl/curl:8.2.1
+        name: shared-volume
+        volumeMounts:
+        - mountPath: /shared
+          name: shared
+      volumes:
+      - emptyDir: {}
+        name: shared
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: demo-app
+  name: demo-app
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: demo-app.172.31.255.254.sslip.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: demo-app
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix

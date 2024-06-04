@@ -1,0 +1,15 @@
+controller:
+  metrics:
+    enabled: true
+    # serviceMonitor:
+    #   additionalLabels:
+    #     release: kube-prometheus-stack
+    #   enabled: true
+  service:
+    type: LoadBalancer
+  replicaCount: "1"
+  ingressClassResource:
+    name: nginx
+    controllerValue: k8s.io/nginx
+  updateStrategy:
+    type: Recreate
