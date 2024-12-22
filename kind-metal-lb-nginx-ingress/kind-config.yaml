@@ -6,6 +6,9 @@ networking:
   ipFamily: ipv4
   dnsSearch: []
 nodes:
+- role: worker
+- role: worker
+- role: worker
 - role: control-plane
   extraPortMappings:
   - containerPort: 80

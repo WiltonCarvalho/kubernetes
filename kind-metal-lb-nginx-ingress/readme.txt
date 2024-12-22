@@ -1,7 +1,7 @@
 curl -L# https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-nginx-ingress/kind-config.yaml -o kind-config.yaml
 
 docker network create kind --subnet 172.31.0.0/16
-kind create cluster --image kindest/node:v1.27.10 --config kind-config.yaml
+kind create cluster --image kindest/node:v1.30.8 --config kind-config.yaml
 
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
 kubectl -n metallb-system get pod --watch
@@ -20,6 +20,7 @@ helm upgrade --install ingress-nginx ingress-nginx \
   --set controller.service.type=LoadBalancer \
   --set controller.service.annotations.\"metallb\\.universe\\.tf/loadBalancerIPs\"=172.31.255.254
 
+kubectl -n ingress-nginx get pod
 curl -I 172.31.255.254/healthz
 
 kubectl create ingress httpd --class=nginx --rule "httpd.example.com/*=httpd:80"
