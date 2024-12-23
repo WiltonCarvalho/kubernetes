@@ -1,0 +1,304 @@
+# https://learn.microsoft.com/en-us/azure/aks/deploy-valkey-cluster
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: valkey-pass
+  namespace: valkey
+type: Opaque
+stringData:
+  # openssl rand -base64 32
+  REDISCLI_AUTH: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey-masters
+  namespace: valkey
+spec:
+  serviceName: "valkey-masters"
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+        appCluster: valkey-masters
+    spec:
+      terminationGracePeriodSeconds: 20
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  appCluster: "valkey-masters"
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - name: valkey
+        image: "valkey/valkey:7-alpine"
+        envFrom:
+        - secretRef:
+            name: valkey-pass
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        args:
+        - valkey-server
+        - --save 60 1
+        - --loglevel notice
+        - --dir /data
+        - --port 6379
+        - --cluster-enabled yes
+        - --cluster-announce-ip $(POD_IP)
+        - --cluster-config-file /data/nodes.conf
+        - --cluster-node-timeout 15000
+        - --appendonly yes
+        - --requirepass $(REDISCLI_AUTH)
+        - --masterauth $(REDISCLI_AUTH)
+        # TODO: https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/
+        # - --cluster-migration-barrier
+        # - --cluster-slave-validity-factor
+        # - --cluster-require-full-coverage
+        # - --cluster-allow-reads-when-down
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "100Mi"
+        ports:
+        - name: valkey
+          containerPort: 6379
+          protocol: "TCP"
+        - name: cluster
+          containerPort: 16379
+          protocol: "TCP"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+        startupProbe:
+          exec:
+            command:
+            - valkey-cli
+            - ping
+          failureThreshold: 10
+          initialDelaySeconds: 20
+        livenessProbe:
+          exec:
+            command:
+            - valkey-cli
+            - ping
+        readinessProbe:
+          exec:
+            command:
+            - valkey-cli
+            - ping
+      - name: role-checker
+        image: "valkey/valkey:7-alpine"
+        command:
+          - sh
+          - -c
+          - |
+            role_checker() {
+              while true; do
+                role=$(valkey-cli role | awk '{print $1; exit}')
+                if [ "$role" = "slave" ]; then
+                  valkey-cli cluster failover
+                fi
+                sleep 30
+              done
+            }
+            shutdown() {
+              kill -TERM "$pid"
+              wait "$pid"
+              exit 0
+            }
+            trap 'shutdown' SIGINT SIGTERM
+            ln -sf /proc/self/fd/1 /tmp/stdout.log
+            ln -sf /proc/self/fd/2 /tmp/stderr.log
+            >/tmp/stdout.log 2>/tmp/stderr.log role_checker &
+            pid=$!
+            wait "$pid"
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        envFrom:
+        - secretRef:
+            name: valkey-pass
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey-replicas
+  namespace: valkey
+spec:
+  serviceName: "valkey-replicas"
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+        appCluster: valkey-replicas
+    spec:
+      terminationGracePeriodSeconds: 20
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  appCluster: "valkey-replicas"
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - name: valkey
+        image: "valkey/valkey:7-alpine"
+        envFrom:
+        - secretRef:
+            name: valkey-pass
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        args:
+        - valkey-server
+        - --save 60 1
+        - --loglevel notice
+        - --dir /data
+        - --port 6379
+        - --cluster-enabled yes
+        - --cluster-announce-ip $(POD_IP)
+        - --cluster-config-file /data/nodes.conf
+        - --cluster-node-timeout 15000
+        - --appendonly yes
+        - --requirepass $(REDISCLI_AUTH)
+        - --masterauth $(REDISCLI_AUTH)
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "100Mi"
+        ports:
+        - name: valkey
+          containerPort: 6379
+          protocol: "TCP"
+        - name: cluster
+          containerPort: 16379
+          protocol: "TCP"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+        startupProbe:
+          exec:
+            command:
+            - valkey-cli
+            - ping
+          failureThreshold: 10
+          initialDelaySeconds: 20
+        livenessProbe:
+          exec:
+            command:
+            - valkey-cli
+            - ping
+        readinessProbe:
+          exec:
+            command:
+            - valkey-cli
+            - ping
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cluster
+  namespace: valkey
+spec:
+  clusterIP: None
+  ports:
+  - name: valkey-port
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: valkey
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-masters
+  namespace: valkey
+spec:
+  clusterIP: None
+  ports:
+  - name: valkey-port
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: valkey
+    appCluster: valkey-masters
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-replicas
+  namespace: valkey
+spec:
+  clusterIP: None
+  ports:
+  - name: valkey-port
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: valkey
+    appCluster: valkey-replicas
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: valkey
+  namespace: valkey
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: valkey
