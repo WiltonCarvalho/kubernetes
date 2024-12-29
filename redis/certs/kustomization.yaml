@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+secretGenerator:
+- name: valkey-tls
+  namespace: valkey
+  files:
+  - ca.crt
+  - valkey.crt
+  - valkey.key
+generatorOptions:
+  disableNameSuffixHash: true

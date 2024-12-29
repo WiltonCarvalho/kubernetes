@@ -39,6 +39,10 @@ spec:
                   appCluster: "valkey-masters"
               topologyKey: kubernetes.io/hostname
             weight: 5
+      volumes:
+        - name: tls
+          secret:
+            secretName: valkey-tls
       containers:
       - name: valkey
         image: "valkey/valkey:7-alpine"
@@ -52,14 +56,26 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         args:
         - valkey-server
         - --save 60 1
         - --loglevel notice
         - --dir /data
-        - --port 6379
+        - --port 0
+        - --tls-port 6379
+        - --tls-cert-file /tls/valkey.crt
+        - --tls-key-file /tls/valkey.key
+        - --tls-ca-cert-file /tls/ca.crt
+        - --tls-auth-clients no
+        - --tls-replication yes
+        - --tls-cluster yes
         - --cluster-enabled yes
-        - --cluster-announce-ip $(POD_IP)
+        #- --cluster-announce-ip $(POD_IP)
+        - --cluster-announce-hostname $(POD_NAME).valkey-masters.valkey.svc.cluster.local
         - --cluster-config-file /data/nodes.conf
         - --cluster-node-timeout 15000
         - --appendonly yes
@@ -85,23 +101,38 @@ spec:
         - name: data
           mountPath: /data
           readOnly: false
+        - name: tls
+          mountPath: /tls/ca.crt
+          subPath: "ca.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/valkey.crt
+          subPath: "valkey.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/valkey.key
+          subPath: "valkey.key"
+          readOnly: true
         startupProbe:
           exec:
             command:
-            - valkey-cli
-            - ping
+            - sh
+            - -c
+            - exec valkey-cli --tls --cacert /tls/ca.crt ping
           failureThreshold: 10
-          initialDelaySeconds: 20
+          initialDelaySeconds: 10
         livenessProbe:
           exec:
             command:
-            - valkey-cli
-            - ping
+            - sh
+            - -c
+            - exec valkey-cli --tls --cacert /tls/ca.crt ping
         readinessProbe:
           exec:
             command:
-            - valkey-cli
-            - ping
+            - sh
+            - -c
+            - exec valkey-cli --tls --cacert /tls/ca.crt ping
       - name: role-checker
         image: "valkey/valkey:7-alpine"
         command:
@@ -110,9 +141,9 @@ spec:
           - |
             role_checker() {
               while true; do
-                role=$(valkey-cli role | awk '{print $1; exit}')
+                role=$(valkey-cli --tls --cacert /tls/ca.crt role | awk '{print $1; exit}')
                 if [ "$role" = "slave" ]; then
-                  valkey-cli cluster failover
+                  valkey-cli --tls --cacert /tls/ca.crt cluster failover
                 fi
                 sleep 30
               done
@@ -128,12 +159,29 @@ spec:
             >/tmp/stdout.log 2>/tmp/stderr.log role_checker &
             pid=$!
             wait "$pid"
+        volumeMounts:
+        - name: tls
+          mountPath: /tls/ca.crt
+          subPath: "ca.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/valkey.crt
+          subPath: "valkey.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/valkey.key
+          subPath: "valkey.key"
+          readOnly: true
         env:
         - name: TZ
           value: America/Sao_Paulo
         envFrom:
         - secretRef:
             name: valkey-pass
+      volumes:
+        - name: tls
+          secret:
+            secretName: valkey-tls
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -172,6 +220,10 @@ spec:
                   appCluster: "valkey-replicas"
               topologyKey: kubernetes.io/hostname
             weight: 5
+      volumes:
+        - name: tls
+          secret:
+            secretName: valkey-tls
       containers:
       - name: valkey
         image: "valkey/valkey:7-alpine"
@@ -185,14 +237,26 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         args:
         - valkey-server
         - --save 60 1
         - --loglevel notice
         - --dir /data
-        - --port 6379
+        - --port 0
+        - --tls-port 6379
+        - --tls-cert-file /tls/valkey.crt
+        - --tls-key-file /tls/valkey.key
+        - --tls-ca-cert-file /tls/ca.crt
+        - --tls-auth-clients no
+        - --tls-replication yes
+        - --tls-cluster yes
         - --cluster-enabled yes
-        - --cluster-announce-ip $(POD_IP)
+        #- --cluster-announce-ip $(POD_IP)
+        - --cluster-announce-hostname $(POD_NAME).valkey-replicas.valkey.svc.cluster.local
         - --cluster-config-file /data/nodes.conf
         - --cluster-node-timeout 15000
         - --appendonly yes
@@ -213,23 +277,38 @@ spec:
         - name: data
           mountPath: /data
           readOnly: false
+        - name: tls
+          mountPath: /tls/ca.crt
+          subPath: "ca.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/valkey.crt
+          subPath: "valkey.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/valkey.key
+          subPath: "valkey.key"
+          readOnly: true
         startupProbe:
           exec:
             command:
-            - valkey-cli
-            - ping
+            - sh
+            - -c
+            - exec valkey-cli --tls --cacert /tls/ca.crt ping
           failureThreshold: 10
-          initialDelaySeconds: 20
+          initialDelaySeconds: 10
         livenessProbe:
           exec:
             command:
-            - valkey-cli
-            - ping
+            - sh
+            - -c
+            - exec valkey-cli --tls --cacert /tls/ca.crt ping
         readinessProbe:
           exec:
             command:
-            - valkey-cli
-            - ping
+            - sh
+            - -c
+            - exec valkey-cli --tls --cacert /tls/ca.crt ping
   volumeClaimTemplates:
   - metadata:
       name: data

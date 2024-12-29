@@ -11,6 +11,7 @@ data:
   locustfile.py: |+
     import os
     import time
+    from random import randint
     from locust import between, task, User, events,tag, constant_throughput
     from valkey import ValkeyCluster
     from random import randint
@@ -35,18 +36,27 @@ data:
             super().__init__(*args, **kwargs)
             self.password = os.environ.get('REDISCLI_AUTH')
             self.host = host
+            tls_config = {
+                'ssl': True,
+                'ssl_cert_reqs': 'none',  # Can be 'required', 'optional', or 'none'
+                # 'ssl_ca_certs': '/path/to/ca_cert.pem',
+                # 'ssl_certfile': '/path/to/client_cert.pem',
+                # 'ssl_keyfile': '/path/to/client_key.pem',
+            }
             self.vc = ValkeyCluster(host=self.host,
                                     port=6379,
                                     password=self.password,
                                     username="default",
                                     cluster_error_retry_attempts=0,
                                     socket_timeout=2,
-                                    keepalive=1
+                                    keepalive=1,
+                                    **tls_config
                                     )
         def set_value(self, key, command='SET'):
             start_time = time.perf_counter()
+            ttl = 60
             try:
-                result = self.vc.set(randint(0, 1000), randint(0, 1000))
+                result = self.vc.set(randint(0, 1000), randint(0, 1000), ex=ttl)
                 if not result:
                     result = ''
                 length = len(str(result))

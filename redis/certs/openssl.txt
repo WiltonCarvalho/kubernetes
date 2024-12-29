@@ -1,0 +1,23 @@
+cd redis/certs
+
+openssl genrsa -out root.key 2048
+
+openssl req -x509 -new -nodes -key root.key -days 36500 \
+  -out ca.crt -sha256 -subj '/O=test/CN=test ca'
+
+openssl genrsa -out valkey.key 2048
+
+openssl req -new -key valkey.key -out server.csr \
+  -subj '/O=test/CN=valkey'
+
+echo "extendedKeyUsage = serverAuth,clientAuth" > server_cert.txt
+
+echo "subjectAltName=IP:127.0.0.1,DNS:*.valkey.svc.cluster.local,DNS:*.valkey-masters.valkey.svc.cluster.local,DNS:*.valkey-replicas.valkey.svc.cluster.local" >> server_cert.txt
+
+openssl x509 -req -CA ca.crt \
+  -CAkey root.key -CAcreateserial -days 36500 \
+  -in server.csr -out valkey.crt -sha256 -extfile server_cert.txt
+
+openssl verify -CAfile ca.crt valkey.crt
+
+rm root.key server_cert.txt server.csr ca.srl
