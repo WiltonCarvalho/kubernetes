@@ -1,3 +1,4 @@
+(
 cd redis/certs
 
 openssl genrsa -out root.key 2048
@@ -21,3 +22,4 @@ openssl x509 -req -CA ca.crt \
 openssl verify -CAfile ca.crt valkey.crt
 
 rm root.key server_cert.txt server.csr ca.srl
+)

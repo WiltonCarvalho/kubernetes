@@ -1,12 +1,12 @@
 kubectl run -it --rm redis-cli --image=redis:7-alpine -- ash
 
-redis-cli -h aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c info
-redis-cli -h aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c get foo1
-redis-cli -h aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c get foo2
-redis-cli -h aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c get foo3
-redis-cli -h aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c keys "*"
+redis-cli -h aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c info
+redis-cli -h aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c get foo1
+redis-cli -h aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c get foo2
+redis-cli -h aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c get foo3
+redis-cli -h aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com --tls -c keys "*"
 
-for x in $(seq 1 3); do redis-cli -c --tls -h aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-$x-1.redis.sa-vinhedo-1.oci.oraclecloud.com keys "*"; done
+for x in $(seq 1 3); do redis-cli -c --tls -h aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-$x-1.redis.sa-vinhedo-1.oci.oraclecloud.com keys "*"; done
 
 ########################################################################
 kubectl run -it --rm redis-client --image=python:3-alpine -- ash
@@ -17,9 +17,9 @@ python
 from redis.cluster import RedisCluster as Redis
 from redis.cluster import ClusterNode
 
-nodes = [ClusterNode('aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com', 6379),
-        ClusterNode('aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-2-1.redis.sa-vinhedo-1.oci.oraclecloud.com', 6379),
-        ClusterNode('aaa5g36vvqa3e2akru75qy77o27zkb2xl6ixzrmp4ikbcmbgzxrosna-3-1.redis.sa-vinhedo-1.oci.oraclecloud.com', 6379)]
+nodes = [ClusterNode('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1-1.redis.sa-vinhedo-1.oci.oraclecloud.com', 6379),
+        ClusterNode('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-2-1.redis.sa-vinhedo-1.oci.oraclecloud.com', 6379),
+        ClusterNode('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-3-1.redis.sa-vinhedo-1.oci.oraclecloud.com', 6379)]
 
 rc = Redis(startup_nodes=nodes, ssl=True, ssl_cert_reqs="none")
 
