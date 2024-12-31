@@ -60,6 +60,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: POD_INDEX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+        - name: SLAVE_REPLICA
+          value: valkey-replicas-$(POD_INDEX).valkey-replicas.valkey.svc.cluster.local
         args:
         - valkey-server
         - --save 60 1
@@ -86,6 +92,31 @@ spec:
         # - --cluster-slave-validity-factor
         # - --cluster-require-full-coverage
         # - --cluster-allow-reads-when-down
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                role=$(valkey-cli --tls --cacert /tls/ca.crt role | awk '{print $1; exit}')
+                while [ "$role" = "slave" ]; do
+                  valkey-cli --tls --cacert /tls/ca.crt cluster failover
+                  sleep 5
+                  role=$(valkey-cli --tls --cacert /tls/ca.crt role | awk '{print $1; exit}')
+                done
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                role=$(valkey-cli --tls --cacert /tls/ca.crt -h $SLAVE_REPLICA role | awk '{print $1; exit}')
+                while [ "$role" = "slave" ]; do
+                  valkey-cli --tls --cacert /tls/ca.crt -h $SLAVE_REPLICA cluster failover
+                  sleep 5
+                  role=$(valkey-cli --tls --cacert /tls/ca.crt -h $SLAVE_REPLICA role | awk '{print $1; exit}')
+                done
         resources:
           requests:
             cpu: "100m"
@@ -133,51 +164,6 @@ spec:
             - sh
             - -c
             - exec valkey-cli --tls --cacert /tls/ca.crt ping
-      - name: role-checker
-        image: "valkey/valkey:7-alpine"
-        command:
-          - sh
-          - -c
-          - |
-            role_checker() {
-              while true; do
-                role=$(valkey-cli --tls --cacert /tls/ca.crt role | awk '{print $1; exit}')
-                if [ "$role" = "slave" ]; then
-                  valkey-cli --tls --cacert /tls/ca.crt cluster failover
-                fi
-                sleep 30
-              done
-            }
-            shutdown() {
-              kill -TERM "$pid"
-              wait "$pid"
-              exit 0
-            }
-            trap 'shutdown' SIGINT SIGTERM
-            ln -sf /proc/self/fd/1 /tmp/stdout.log
-            ln -sf /proc/self/fd/2 /tmp/stderr.log
-            >/tmp/stdout.log 2>/tmp/stderr.log role_checker &
-            pid=$!
-            wait "$pid"
-        volumeMounts:
-        - name: tls
-          mountPath: /tls/ca.crt
-          subPath: "ca.crt"
-          readOnly: true
-        - name: tls
-          mountPath: /tls/valkey.crt
-          subPath: "valkey.crt"
-          readOnly: true
-        - name: tls
-          mountPath: /tls/valkey.key
-          subPath: "valkey.key"
-          readOnly: true
-        env:
-        - name: TZ
-          value: America/Sao_Paulo
-        envFrom:
-        - secretRef:
-            name: valkey-pass
       volumes:
         - name: tls
           secret:

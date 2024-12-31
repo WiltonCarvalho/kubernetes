@@ -14,7 +14,7 @@ kubectl apply -f redis/valkey-cluster.yaml
 kubectl -n valkey get pod
 
 # Join Cluster Nodes
-kubectl exec -it -n valkey valkey-masters-0 -c role-checker -- ash
+kubectl exec -it -n valkey valkey-masters-0 -- ash
 
 valkey-cli --tls --cacert /tls/ca.crt --cluster create --cluster-yes --cluster-replicas 0 \
   valkey-masters-0.valkey-masters.valkey.svc.cluster.local:6379 \
@@ -44,7 +44,7 @@ kubectl -n valkey logs valkey-masters-0
 kubectl -n valkey logs valkey-replicas-0
 
 # Test Redis Write
-kubectl exec -it -n valkey valkey-masters-0 -c role-checker -- ash
+kubectl exec -it -n valkey valkey-masters-0 -- ash
 valkey-cli --tls --cacert /tls/ca.crt cluster slots
 valkey-cli --tls --cacert /tls/ca.crt -c set foo1 bar1
 valkey-cli --tls --cacert /tls/ca.crt -c set foo2 bar2
@@ -65,19 +65,6 @@ google-chrome --incognito http://localhost:8089
 
 kubectl -n valkey logs valkey-client-0
 
-kubectl exec -it -n valkey valkey-masters-0 -c role-checker -- ash
-
-for x in $(seq 0 2); do \
-  for i in $(valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-$x.valkey-masters.valkey.svc.cluster.local --scan --pattern '*'); do \
-    valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-$x.valkey-masters.valkey.svc.cluster.local del $i; \
-  done; \
-done
-
-for x in $(seq 0 2); do valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-$x.valkey-masters.valkey.svc.cluster.local keys "*"; done
-
-valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-0.valkey-masters.valkey.svc.cluster.local --scan --pattern '*'
-valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-0.valkey-masters.valkey.svc.cluster.local ttl xxxxx
-
 # Delete a master node 0
 kubectl -n valkey delete statefulset valkey-masters --cascade=orphan
 
@@ -93,9 +80,23 @@ kubectl apply -f redis/valkey-cluster.yaml
 
 # Watch the master node 0 re-taking the master role
 kubectl -n valkey logs valkey-masters-0
-kubectl -n valkey logs valkey-masters-0 -c role-checker
+kubectl -n valkey logs valkey-masters-0
 
-# Delete
+# Delete all keys
+kubectl exec -it -n valkey valkey-masters-0 -- ash
+
+for x in $(seq 0 2); do \
+  for i in $(valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-$x.valkey-masters.valkey.svc.cluster.local --scan --pattern '*'); do \
+    valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-$x.valkey-masters.valkey.svc.cluster.local del $i; \
+  done; \
+done
+
+for x in $(seq 0 2); do valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-$x.valkey-masters.valkey.svc.cluster.local keys "*"; done
+
+valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-0.valkey-masters.valkey.svc.cluster.local --scan --pattern '*'
+valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-0.valkey-masters.valkey.svc.cluster.local ttl xxxxx
+
+# Delete Lab
 kubectl delete -f redis/valkey-client.yaml
 kubectl delete -f redis/valkey-cluster.yaml
 kubectl -n valkey delete pvc data-valkey-masters-0   data-valkey-masters-2   data-valkey-replicas-1 data-valkey-masters-1   data-valkey-replicas-0  data-valkey-replicas-2
