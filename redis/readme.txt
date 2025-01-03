@@ -82,6 +82,18 @@ kubectl apply -f redis/valkey-cluster.yaml
 kubectl -n valkey logs valkey-masters-0
 kubectl -n valkey logs valkey-masters-0
 
+# Spring Boot App
+kubectl apply -f registry.yaml
+kubectl port-forward services/registry 5000
+
+cd redis/spring-boot-redis/
+docker-compose build --progress=plain
+docker tag docker.io/library/spring-boot-redis-app localhost:5000/test
+docker push localhost:5000/test
+kubectl run test --image localhost:32000/test --port 8080 --labels app=test
+kubectl logs test
+kubectl delete pod test
+
 # Delete all keys
 kubectl exec -it -n valkey valkey-masters-0 -- ash
 

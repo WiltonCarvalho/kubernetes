@@ -1,0 +1,38 @@
+#### Spring 2.x ####
+# spring:
+#   redis:
+#     password: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
+#     #host: localhost
+#     #port: 6379
+#     cluster:
+#       nodes:
+#       - valkey-cluster.valkey.svc.cluster.local:6379
+#       max-redirects: 3
+#     ssl: true
+#     ssl:
+#       trust-store: classpath:redis-ca-cert.jks
+#       trust-store-password: yourpassword
+#### Spring 3.x ####
+spring:
+  data:
+    redis:
+      password: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
+      #host: localhost
+      #port: 6379
+      cluster:
+        nodes:
+        - valkey-cluster.valkey.svc.cluster.local:6379
+        max-redirects: 3
+      ssl:
+        enabled: true
+  #       bundle: redis-bundle
+  # ssl:
+  #   bundle:
+  #     pem:
+  #       redis-bundle:
+  #         truststore:
+  #           certificate: file:/app/ca.crt
+#logging:
+#  level.io.lettuce.core: DEBUG
+#  level.org.springframework.data.redis: DEBUG
+
