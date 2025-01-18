@@ -1,0 +1,112 @@
+# kubectl create secret generic gitea-postgres-env \
+# --from-literal=POSTGRES_DB=gitea \
+# --from-literal=POSTGRES_USER=gitea \
+# --from-literal=POSTGRES_PASSWORD=gitea
+#
+# kubectl apply -f gitea/postgres.yaml
+# kubectl logs gitea-postgres-0
+# kubectl exec -it gitea-postgres-0 -- ash
+#
+# psql -U gitea
+# \?
+# \l
+# \c gitea
+# \conninfo
+# \dt
+# SELECT * FROM users;
+# \q
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: gitea-postgres
+  name: gitea-postgres
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: gitea-postgres
+  template:
+    metadata:
+      labels:
+        app: gitea-postgres
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        env:
+        - name: TZ
+          value: "America/Sao_Paulo"
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        envFrom:
+        - secretRef:
+            name: gitea-postgres-env
+        # command:
+        # - sh
+        # - -c
+        # - |
+        #   shutdown() {
+        #   kill -TERM "$pid"
+        #   wait "$pid"
+        #   exit 0
+        #   }
+        #   trap 'shutdown' SIGINT SIGTERM
+        #   sleep infinity &
+        #   pid=$!
+        #   wait "$pid"
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              psql -w -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT 1'
+          failureThreshold: 10
+          initialDelaySeconds: 20
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              psql -w -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT 1'
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              psql -w -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT 1'
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Gi
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: gitea-postgres
+  name: gitea-postgres
+spec:
+  selector:
+    app: gitea-postgres
+  ports:
+  - name: gitea-postgres
+    port: 5432
+    protocol: TCP
+    targetPort: 5432

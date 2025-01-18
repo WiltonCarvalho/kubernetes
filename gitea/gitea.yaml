@@ -1,0 +1,149 @@
+# kubectl delete secret gitea-env
+
+# kubectl create secret generic gitea-env \
+# --from-literal=GITEA__mailer__ENABLED=true \
+# --from-literal=GITEA__mailer__FROM=gitea@wiltoncarvalho.com \
+# --from-literal=GITEA__mailer__PROTOCOL=smtp+starttls \
+# --from-literal=GITEA__mailer__FORCE_TRUST_SERVER_CERT=true \
+# --from-literal=GITEA__mailer__SMTP_ADDR=postfix.default.svc \
+# --from-literal=GITEA__mailer__SMTP_PORT=25 \
+# --from-literal=GITEA__mailer__USER= \
+# --from-literal=GITEA__mailer__PASSWD= \
+# --from-literal=GITEA__service__ENABLE_NOTIFY_MAIL=true \
+# --from-literal=GITEA__database__DB_TYPE=postgres \
+# --from-literal=GITEA__database__HOST=gitea-postgres:5432 \
+# --from-literal=GITEA__database__NAME=gitea \
+# --from-literal=GITEA__database__USER=gitea \
+# --from-literal=GITEA__database__PASSWD=gitea
+
+# kubectl apply -f gitea/gitea.yaml
+# kubectl logs gitea-0
+# kubectl port-forward services/gitea-http 3000
+# kubectl exec -it gitea-0 -- bash
+# su - git
+# gitea admin sendmail --title "Hello from Gitea" --content "This is a test"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: gitea
+  name: gitea
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: gitea
+        image: gitea/gitea:1.22.4
+        ports:
+        - containerPort: 3000
+        - containerPort: 22
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        env:
+        - name: TZ
+          value: "America/Sao_Paulo"
+        - name: USER_UID
+          value: "1000"
+        - name: USER_GID
+          value: "1000"
+        - name: GITEA__server__MINIMUM_KEY_SIZE_CHECK
+          value: "false"
+        - name: GITEA__server__SSH_PORT
+          value: "32222"
+        - name: DISABLE_REGISTRATION
+          value: "true"
+        envFrom:
+        - secretRef:
+            name: gitea-env
+        # command:
+        # - sh
+        # - -c
+        # - |
+        #   shutdown() {
+        #   kill -TERM "$pid"
+        #   wait "$pid"
+        #   exit 0
+        #   }
+        #   trap 'shutdown' SIGINT SIGTERM
+        #   sleep infinity &
+        #   pid=$!
+        #   wait "$pid"
+        startupProbe:
+          failureThreshold: 20
+          httpGet:
+            path: /api/healthz
+            port: 3000
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/healthz
+            port: 3000
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/healthz
+            port: 3000
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 20Gi
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: gitea
+  name: gitea-http
+spec:
+  selector:
+    app: gitea
+  ports:
+  - name: gitea
+    port: 3000
+    protocol: TCP
+    targetPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: gitea
+  name: gitea-ssh
+spec:
+  type: NodePort
+  ports:
+  - name: ssh
+    port: 22
+    protocol: TCP
+    targetPort: gitea-ssh
+    nodePort: 32222
+  selector:
+    app: gitea

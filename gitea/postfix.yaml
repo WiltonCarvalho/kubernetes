@@ -1,0 +1,79 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: postfix
+  name: postfix
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: postfix
+  template:
+    metadata:
+      labels:
+        app: postfix
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: postfix
+        image: localhost:32000/postfix:latest
+        ports:
+        - containerPort: 25
+        env:
+        - name: TZ
+          value: "America/Sao_Paulo"
+        # command:
+        # - sh
+        # - -c
+        # - |
+        #   shutdown() {
+        #   kill -TERM "$pid"
+        #   wait "$pid"
+        #   exit 0
+        #   }
+        #   trap 'shutdown' SIGINT SIGTERM
+        #   sleep infinity &
+        #   pid=$!
+        #   wait "$pid"
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              postfix status
+          failureThreshold: 10
+          initialDelaySeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              postfix status
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              postfix status
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: postfix
+  name: postfix
+spec:
+  selector:
+    app: postfix
+  ports:
+  - name: postfix
+    port: 25
+    protocol: TCP
+    targetPort: 25
