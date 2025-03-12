@@ -1,0 +1,447 @@
+# https://learn.microsoft.com/en-us/azure/aks/deploy-valkey-cluster
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-pass
+  namespace: redis
+type: Opaque
+stringData:
+  # openssl rand -base64 32
+  REDISCLI_AUTH: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-masters
+  namespace: redis
+spec:
+  serviceName: "redis-masters"
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        appCluster: redis-masters
+    spec:
+      terminationGracePeriodSeconds: 20
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  appCluster: "redis-masters"
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      volumes:
+        - name: shared
+          emptyDir: {}
+        - name: tls
+          secret:
+            secretName: redis-tls
+      initContainers:
+      - name: init-tls
+        image: alpine/openssl
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - name: shared
+          mountPath: /tls
+        - name: tls
+          mountPath: /tls/ca.crt
+          subPath: "ca.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/ca.key
+          subPath: "ca.key"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/redis.key
+          subPath: "redis.key"
+          readOnly: true
+        command: ['/bin/sh']
+        args:
+        - -c
+        - |
+          set -ex
+          cd /tls
+          openssl req -new -key redis.key -out server.csr \
+            -subj '/O=test/CN=redis'
+          echo "extendedKeyUsage = serverAuth,clientAuth" > server_cert.txt
+          echo "subjectAltName=IP:127.0.0.1,IP:$(POD_IP),DNS:*.redis.svc.cluster.local,DNS:*.redis-masters.redis.svc.cluster.local,DNS:*.redis-replicas.redis.svc.cluster.local" >> server_cert.txt
+          openssl x509 -req -CA ca.crt \
+            -CAkey ca.key -CAcreateserial -days 36500 \
+            -in server.csr -out redis.crt -sha256 -extfile server_cert.txt
+          openssl verify -CAfile ca.crt redis.crt
+      containers:
+      - name: redis
+        image: "redis:7-alpine"
+        envFrom:
+        - secretRef:
+            name: redis-pass
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_INDEX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+        - name: SLAVE_REPLICA
+          value: redis-replicas-$(POD_INDEX).redis-replicas.redis.svc.cluster.local
+        args:
+        - redis-server
+        - --save 60 1
+        - --loglevel notice
+        - --dir /data
+        - --port 0
+        - --tls-port 6379
+        - --tls-cert-file /tls/redis.crt
+        - --tls-key-file /tls/redis.key
+        - --tls-ca-cert-file /tls/ca.crt
+        - --tls-auth-clients no
+        - --tls-replication yes
+        - --tls-cluster yes
+        - --cluster-enabled yes
+        - --cluster-announce-ip $(POD_IP)
+        #- --cluster-announce-hostname $(POD_NAME).redis-masters.redis.svc.cluster.local
+        - --cluster-config-file /data/nodes.conf
+        - --cluster-node-timeout 15000
+        - --appendonly yes
+        - --requirepass $(REDISCLI_AUTH)
+        - --masterauth $(REDISCLI_AUTH)
+        # TODO: https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/
+        # - --cluster-migration-barrier
+        # - --cluster-slave-validity-factor
+        # - --cluster-require-full-coverage
+        # - --cluster-allow-reads-when-down
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                role=$(redis-cli --tls --cacert /tls/ca.crt role | awk '{print $1; exit}')
+                while [ "$role" = "slave" ]; do
+                  redis-cli --tls --cacert /tls/ca.crt cluster failover
+                  sleep 5
+                  role=$(redis-cli --tls --cacert /tls/ca.crt role | awk '{print $1; exit}')
+                done
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                role=$(redis-cli --tls --cacert /tls/ca.crt -h $SLAVE_REPLICA role | awk '{print $1; exit}')
+                while [ "$role" = "slave" ]; do
+                  redis-cli --tls --cacert /tls/ca.crt -h $SLAVE_REPLICA cluster failover
+                  sleep 5
+                  role=$(redis-cli --tls --cacert /tls/ca.crt -h $SLAVE_REPLICA role | awk '{print $1; exit}')
+                done
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "100Mi"
+        ports:
+        - name: redis
+          containerPort: 6379
+          protocol: "TCP"
+        - name: cluster
+          containerPort: 16379
+          protocol: "TCP"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+        - name: shared
+          mountPath: /tls
+        - name: tls
+          mountPath: /tls/ca.crt
+          subPath: "ca.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/ca.key
+          subPath: "ca.key"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/redis.key
+          subPath: "redis.key"
+          readOnly: true
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec redis-cli --tls --cacert /tls/ca.crt ping
+          failureThreshold: 10
+          initialDelaySeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec redis-cli --tls --cacert /tls/ca.crt ping
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec redis-cli --tls --cacert /tls/ca.crt ping
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replicas
+  namespace: redis
+spec:
+  serviceName: "redis-replicas"
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        appCluster: redis-replicas
+    spec:
+      terminationGracePeriodSeconds: 20
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  appCluster: "redis-replicas"
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      volumes:
+        - name: shared
+          emptyDir: {}
+        - name: tls
+          secret:
+            secretName: redis-tls
+      initContainers:
+      - name: init-tls
+        image: alpine/openssl
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - name: shared
+          mountPath: /tls
+        - name: tls
+          mountPath: /tls/ca.crt
+          subPath: "ca.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/ca.key
+          subPath: "ca.key"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/redis.key
+          subPath: "redis.key"
+          readOnly: true
+        command: ['/bin/sh']
+        args:
+        - -c
+        - |
+          set -ex
+          cd /tls
+          openssl req -new -key redis.key -out server.csr \
+            -subj '/O=test/CN=redis'
+          echo "extendedKeyUsage = serverAuth,clientAuth" > server_cert.txt
+          echo "subjectAltName=IP:127.0.0.1,IP:$(POD_IP),DNS:*.redis.svc.cluster.local,DNS:*.redis-masters.redis.svc.cluster.local,DNS:*.redis-replicas.redis.svc.cluster.local" >> server_cert.txt
+          openssl x509 -req -CA ca.crt \
+            -CAkey ca.key -CAcreateserial -days 36500 \
+            -in server.csr -out redis.crt -sha256 -extfile server_cert.txt
+          openssl verify -CAfile ca.crt redis.crt
+      containers:
+      - name: redis
+        image: "redis:7-alpine"
+        envFrom:
+        - secretRef:
+            name: redis-pass
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        args:
+        - redis-server
+        - --save 60 1
+        - --loglevel notice
+        - --dir /data
+        - --port 0
+        - --tls-port 6379
+        - --tls-cert-file /tls/redis.crt
+        - --tls-key-file /tls/redis.key
+        - --tls-ca-cert-file /tls/ca.crt
+        - --tls-auth-clients no
+        - --tls-replication yes
+        - --tls-cluster yes
+        - --cluster-enabled yes
+        - --cluster-announce-ip $(POD_IP)
+        #- --cluster-announce-hostname $(POD_NAME).redis-replicas.redis.svc.cluster.local
+        - --cluster-config-file /data/nodes.conf
+        - --cluster-node-timeout 15000
+        - --appendonly yes
+        - --requirepass $(REDISCLI_AUTH)
+        - --masterauth $(REDISCLI_AUTH)
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "100Mi"
+        ports:
+        - name: redis
+          containerPort: 6379
+          protocol: "TCP"
+        - name: cluster
+          containerPort: 16379
+          protocol: "TCP"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+        - name: shared
+          mountPath: /tls
+        - name: tls
+          mountPath: /tls/ca.crt
+          subPath: "ca.crt"
+          readOnly: true
+        - name: tls
+          mountPath: /tls/redis.key
+          subPath: "redis.key"
+          readOnly: true
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec redis-cli --tls --cacert /tls/ca.crt ping
+          failureThreshold: 10
+          initialDelaySeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec redis-cli --tls --cacert /tls/ca.crt ping
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec redis-cli --tls --cacert /tls/ca.crt ping
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster
+  namespace: redis
+spec:
+  clusterIP: None
+  ports:
+  - name: redis-port
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: redis
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-masters
+  namespace: redis
+spec:
+  clusterIP: None
+  ports:
+  - name: redis-port
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: redis
+    appCluster: redis-masters
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-replicas
+  namespace: redis
+spec:
+  clusterIP: None
+  ports:
+  - name: redis-port
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: redis
+    appCluster: redis-replicas
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis
+  namespace: redis
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: redis

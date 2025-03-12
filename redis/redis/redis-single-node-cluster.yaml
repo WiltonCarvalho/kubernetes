@@ -1,0 +1,110 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: redis
+  labels:
+    app: redis-cluster
+  name: redis-cluster
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: redis-cluster
+  template:
+    metadata:
+      labels:
+        app: redis-cluster
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: redis
+        # kubectl -n redis exec -it redis-cluster-0 -- ash
+        # redis-cli cluster slots
+        # redis-cli cluster addslotsrange 0 16383
+        # redis-cli set foo bar
+        # redis-cli keys \*
+        image: redis:7-alpine
+        env:
+        - name: TZ
+          value: America/Sao_Paulo
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        args:
+        - redis-server
+        - --save 60 1
+        - --loglevel notice
+        - --cluster-enabled yes
+        - --cluster-announce-ip $(POD_IP)
+        - --cluster-config-file nodes.conf
+        - --cluster-node-timeout 15000
+        - --cluster-migration-barrier 1
+        - --cluster-require-full-coverage no
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        # command:
+        # - sh
+        # - -c
+        # - |
+        #   shutdown() {
+        #   kill -TERM "$pid"
+        #   wait "$pid"
+        #   exit 0
+        #   }
+        #   trap 'shutdown' SIGINT SIGTERM
+        #   sleep infinity &
+        #   pid=$!
+        #   wait "$pid"
+        startupProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          failureThreshold: 10
+          initialDelaySeconds: 20
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Gi
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: redis
+  labels:
+    app: redis-cluster
+  name: redis-cluster
+spec:
+  selector:
+    app: redis-cluster
+  ports:
+  - name: redis-cluster
+    port: 6379
+    protocol: TCP
+    targetPort: 6379

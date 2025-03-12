@@ -1,0 +1,11 @@
+(
+cd redis/certs
+
+openssl genrsa -out ca.key 2048
+
+openssl req -x509 -new -nodes -key ca.key -days 36500 \
+  -out ca.crt -sha256 -subj '/O=test/CN=test ca'
+
+openssl genrsa -out redis.key 2048
+
+)

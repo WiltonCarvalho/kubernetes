@@ -1,0 +1,135 @@
+# KinD Cluster
+curl -L# https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-nginx-ingress/kind-config.yaml -o ~/kind-config.yaml
+
+docker network create kind --subnet 172.31.0.0/16
+kind create cluster --image kindest/node:v1.30.8 --config ~/kind-config.yaml
+
+# Deploy Cluster Statefulset
+kubectl create ns redis
+
+kubectl apply -k redis/certs
+
+kubectl apply -f redis/redis-cluster.yaml
+
+kubectl -n redis get pod
+
+# Join Cluster Nodes
+kubectl exec -it -n redis redis-masters-0 -- ash
+
+redis-cli --tls --cacert /tls/ca.crt --cluster create --cluster-yes --cluster-replicas 0 \
+  redis-masters-0.redis-masters.redis.svc.cluster.local:6379 \
+  redis-masters-1.redis-masters.redis.svc.cluster.local:6379 \
+  redis-masters-2.redis-masters.redis.svc.cluster.local:6379
+
+redis-cli --tls --cacert /tls/ca.crt --cluster add-node \
+  redis-replicas-0.redis-replicas.redis.svc.cluster.local:6379 \
+  redis-masters-0.redis-masters.redis.svc.cluster.local:6379 --cluster-slave
+
+redis-cli --tls --cacert /tls/ca.crt --cluster add-node \
+  redis-replicas-1.redis-replicas.redis.svc.cluster.local:6379 \
+  redis-masters-1.redis-masters.redis.svc.cluster.local:6379 --cluster-slave
+
+redis-cli --tls --cacert /tls/ca.crt --cluster add-node \
+  redis-replicas-2.redis-replicas.redis.svc.cluster.local:6379 \
+  redis-masters-2.redis-masters.redis.svc.cluster.local:6379 --cluster-slave
+
+exit
+
+# Verify Cluster Roles
+for x in $(seq 0 2); do echo "redis-masters-$x"; kubectl exec -n redis redis-masters-$x  -- ash -c 'redis-cli --tls --cacert /tls/ca.crt role; echo'; done
+for x in $(seq 0 2); do echo "redis-replicas-$x"; kubectl exec -n redis redis-replicas-$x -- ash -c 'redis-cli --tls --cacert /tls/ca.crt role; echo'; done
+
+# Verify Replication
+kubectl -n redis logs redis-masters-0
+kubectl -n redis logs redis-replicas-0
+
+# Test Redis Write
+kubectl exec -it -n redis redis-masters-0 -- ash
+redis-cli --tls --cacert /tls/ca.crt cluster slots
+redis-cli --tls --cacert /tls/ca.crt -c set foo1 bar1
+redis-cli --tls --cacert /tls/ca.crt -c set foo2 bar2
+redis-cli --tls --cacert /tls/ca.crt -c set foo3 bar3
+redis-cli --tls --cacert /tls/ca.crt -c get foo1
+for x in $(seq 0 2); do redis-cli --tls --cacert /tls/ca.crt -c -h redis-masters-$x.redis-masters.redis.svc.cluster.local keys "*"; done
+
+exit
+
+# Spring Boot App
+kubectl apply -f registry.yaml
+
+(
+  cd spring-boot-redis/
+  docker-compose build --progress=plain
+)
+kubectl port-forward services/registry 5000
+
+docker tag docker.io/library/spring-boot-redis-app localhost:5000/test
+docker push localhost:5000/test
+kubectl rollout restart deployment demo-app
+kubectl apply -f spring-boot-redis/demo-app.yaml
+kubectl logs deployments/demo-app
+
+# Delete a master node 0
+kubectl -n redis delete statefulset redis-masters --cascade=orphan
+
+kubectl -n redis delete pod redis-masters-0
+
+# Watch the relica 0 taking the master role
+kubectl -n redis get pods
+
+kubectl -n redis logs redis-replicas-0
+
+# Re-apply to recreate the master node 0
+kubectl apply -f redis/redis-cluster.yaml
+
+# Locust load + failover test
+kubectl apply -f redis/redis-client.yaml
+kubectl -n redis get pod
+
+kubectl -n redis port-forward redis-client-0 8089:8089
+
+# Start Test
+google-chrome --incognito http://localhost:8089
+
+kubectl -n redis logs redis-client-0
+
+# Delete a master node 0
+kubectl -n redis delete statefulset redis-masters --cascade=orphan
+
+kubectl -n redis delete pod redis-masters-0
+
+# Watch the relica 0 taking the master role
+kubectl -n redis get pods
+
+kubectl -n redis logs redis-replicas-0
+
+# Re-apply to recreate the master node 0
+kubectl apply -f redis/redis-cluster.yaml
+
+# Watch the master node 0 re-taking the master role
+kubectl -n redis logs redis-masters-0
+kubectl -n redis logs redis-masters-0
+
+
+# Delete all keys
+kubectl exec -it -n redis redis-masters-0 -- ash
+
+for x in $(seq 0 2); do \
+  for i in $(redis-cli --tls --cacert /tls/ca.crt -c -h redis-masters-$x.redis-masters.redis.svc.cluster.local --scan --pattern '*'); do \
+    redis-cli --tls --cacert /tls/ca.crt -c -h redis-masters-$x.redis-masters.redis.svc.cluster.local del $i; \
+  done; \
+done
+
+for x in $(seq 0 2); do redis-cli --tls --cacert /tls/ca.crt -c -h redis-masters-$x.redis-masters.redis.svc.cluster.local keys "*"; done
+
+redis-cli --tls --cacert /tls/ca.crt -c -h redis-masters-0.redis-masters.redis.svc.cluster.local --scan --pattern '*'
+redis-cli --tls --cacert /tls/ca.crt -c -h redis-masters-0.redis-masters.redis.svc.cluster.local ttl xxxxx
+
+# Delete Lab
+kubectl delete -f redis/redis-client.yaml
+kubectl delete -f redis/redis-cluster.yaml
+kubectl -n redis delete pvc data-redis-masters-0   data-redis-masters-2   data-redis-replicas-1 data-redis-masters-1   data-redis-replicas-0  data-redis-replicas-2
+
+kubectl delete ns redis
+
+kind delete cluster
