@@ -13,6 +13,10 @@
 #       trust-store: classpath:redis-ca-cert.jks
 #       trust-store-password: yourpassword
 #### Spring 3.x ####
+management:
+  endpoint:
+    health:
+      showDetails: always
 spring:
   data:
     redis:
@@ -21,7 +25,7 @@ spring:
       #port: 6379
       cluster:
         nodes:
-        - valkey-cluster.valkey.svc.cluster.local:6379
+        - redis-cluster.redis.svc.cluster.local:6379
         max-redirects: 3
       ssl:
         enabled: true
