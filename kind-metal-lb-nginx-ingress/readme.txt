@@ -5,6 +5,20 @@ sudo chmod +x /usr/local/bin/kubectl
 HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 curl -fsSL https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz | sudo tar zxvf - -C "/usr/local/bin" linux-amd64/helm --strip-components 1
 
+cat <<'EOF'>> ~/.bashrc
+test -x /usr/local/bin/kubectl && source <(kubectl completion bash)
+test -x /usr/local/bin/kubectl && alias k=kubectl
+test -x /usr/local/bin/kubectl && complete -o default -F __start_kubectl k
+test -x /usr/local/bin/helm && source <(helm completion bash)
+EOF
+
+cat <<'EOF'>> ~/.zshrc
+test -x /usr/local/bin/kubectl && source <(kubectl completion zsh)
+test -x /usr/local/bin/kubectl && alias k=kubectl
+test -x /usr/local/bin/kubectl && compdef k=kubectl
+test -x /usr/local/bin/helm && source <(helm completion zsh)
+EOF
+
 KIND_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 sudo curl -fsSL https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION/kind-linux-amd64 -o /usr/local/bin/kind
 sudo chmod +x /usr/local/bin/kind
