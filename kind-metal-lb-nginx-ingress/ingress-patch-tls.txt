@@ -1,0 +1,15 @@
+cat <<'EOF'> /tmp/patch.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: httpd
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - httpd.wiltoncarvalho.com
+    secretName: httpd-tls
+EOF
+
+kubectl patch ingress httpd -p "$(cat /tmp/patch.yaml)" --type merge
