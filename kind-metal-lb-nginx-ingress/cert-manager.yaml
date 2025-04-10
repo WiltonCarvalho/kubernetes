@@ -41,5 +41,3 @@ spec:
   dnsNames:
   - "wiltoncarvalho.com"
   - "*.wiltoncarvalho.com"
-
-

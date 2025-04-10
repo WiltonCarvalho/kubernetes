@@ -1,4 +1,5 @@
 KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable-1.31.txt)
 sudo curl -fsSL https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl
 sudo chmod +x /usr/local/bin/kubectl
 
