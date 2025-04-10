@@ -1,4 +1,12 @@
-sudo curl -fsSL https://github.com/kubernetes-sigs/kind/releases/download/v0.27.0/kind-linux-amd64 -o /usr/local/bin/kind
+KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+sudo curl -fsSL https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl
+sudo chmod +x /usr/local/bin/kubectl
+
+HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+curl -fsSL https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz | sudo tar zxvf - -C "/usr/local/bin" linux-amd64/helm --strip-components 1
+
+KIND_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+sudo curl -fsSL https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION/kind-linux-amd64 -o /usr/local/bin/kind
 sudo chmod +x /usr/local/bin/kind
 
 curl -L# https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-nginx-ingress/kind-config.yaml -o ~/kind-config.yaml
@@ -6,9 +14,12 @@ curl -L# https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-ngi
 kind delete cluster
 docker network rm kind
 docker network create kind --subnet 172.31.0.0/16
-kind create cluster --image kindest/node:v1.30.8 --config ~/kind-config.yaml
 
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+K8S_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+kind create cluster --image kindest/node:$LATEST_STABLE_RELEASE --config ~/kind-config.yaml
+
+METALLB_VERSION=$(curl -s https://api.github.com/repos/metallb/metallb/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/$METALLB_VERSION/config/manifests/metallb-native.yaml
 kubectl -n metallb-system get pod --watch
 
 kubectl apply -f https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-nginx-ingress/metallb-config.yaml
