@@ -33,6 +33,10 @@ docker network create kind --subnet 172.31.0.0/16
 K8S_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
 kind create cluster --image kindest/node:$LATEST_STABLE_RELEASE --config ~/kind-config.yaml
 
+kubectl version
+kubectl get node
+heml version
+
 METALLB_VERSION=$(curl -s https://api.github.com/repos/metallb/metallb/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/$METALLB_VERSION/config/manifests/metallb-native.yaml
 kubectl -n metallb-system get pod --watch
