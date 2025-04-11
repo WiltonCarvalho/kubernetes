@@ -6,11 +6,23 @@ sudo chmod +x /usr/local/bin/kubectl
 HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 curl -fsSL https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz | sudo tar zxvf - -C "/usr/local/bin" linux-amd64/helm --strip-components 1
 
+KUBECTX_VERSION=$(curl -s https://api.github.com/repos/ahmetb/kubectx/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+sudo curl -fsSL https://github.com/ahmetb/kubectx/releases/download/$KUBECTX_VERSION/kubectx -o /usr/local/bin/kubectx
+sudo chmod +x /usr/local/bin/kubectx
+
+YQ_VERSION=$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+sudo curl -fsSL https://github.com/mikefarah/yq/releases/download/$YQ_VERSION/yq_linux_amd64 -o /usr/local/bin/yq
+sudo chmod +x /usr/local/bin/yq
+
+KUSTOMIZE_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/kustomize/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION#kustomize/}_linux_amd64.tar.gz | sudo tar zxvf - -C "/usr/local/bin"
+
 cat <<'EOF'>> ~/.bashrc
 test -x /usr/local/bin/kubectl && source <(kubectl completion bash)
 test -x /usr/local/bin/kubectl && alias k=kubectl
 test -x /usr/local/bin/kubectl && complete -o default -F __start_kubectl k
 test -x /usr/local/bin/helm && source <(helm completion bash)
+test -x /usr/local/bin/kubectx && alias kx=kubectx
 EOF
 
 cat <<'EOF'>> ~/.zshrc
@@ -18,6 +30,7 @@ test -x /usr/local/bin/kubectl && source <(kubectl completion zsh)
 test -x /usr/local/bin/kubectl && alias k=kubectl
 test -x /usr/local/bin/kubectl && compdef k=kubectl
 test -x /usr/local/bin/helm && source <(helm completion zsh)
+test -x /usr/local/bin/kubectx && alias kx=kubectx
 EOF
 
 KIND_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
@@ -31,11 +44,11 @@ docker network rm kind
 docker network create kind --subnet 172.31.0.0/16
 
 K8S_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
-kind create cluster --image kindest/node:$LATEST_STABLE_RELEASE --config ~/kind-config.yaml
+kind create cluster --image kindest/node:$K8S_VERSION --config ~/kind-config.yaml
 
 kubectl version
 kubectl get node
-heml version
+helm version
 
 METALLB_VERSION=$(curl -s https://api.github.com/repos/metallb/metallb/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/$METALLB_VERSION/config/manifests/metallb-native.yaml
