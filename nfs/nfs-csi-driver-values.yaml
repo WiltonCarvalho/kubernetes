@@ -1,0 +1,19 @@
+controller:
+  name: csi-nfs-controller
+  replicas: 1
+  strategyType: Recreate
+  runOnControlPlane: true
+driver:
+  mountPermissions: 0770
+storageClass:
+  create: true
+  name: nfs-csi
+  parameters:
+    server: nfs-server-0.nfs-server.default.svc
+    share: /
+    #subDir:
+    mountPermissions: "0770"
+  reclaimPolicy: Retain
+  volumeBindingMode: Immediate
+  mountOptions:
+    - nfsvers=4.1

@@ -1,0 +1,80 @@
+# kubectl apply -f https://raw.githubusercontent.com/WiltonCarvalho/kubernetes/refs/heads/main/nfs/nfs-server.yaml
+# kubectl run -it --rm nfs-client --image oraclelinux:8 --privileged -- bash
+# dnf -y install nfs-utils
+# mount -t nfs -o nosuid,resvport,sec=sys,nolock nfs-server-0.nfs-server.default.svc:/ /mnt
+# df -h /mnt/
+# mkdir --mode=775 /mnt/test
+# umount /mnt
+# helm repo add csi-driver-nfs https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+# curl -fsSL https://raw.githubusercontent.com/WiltonCarvalho/kubernetes/refs/heads/main/nfs/nfs-csi-driver-values.yaml -o nfs-csi-driver-values.yaml
+# helm upgrade --install csi-driver-nfs csi-driver-nfs/csi-driver-nfs --namespace kube-system --version v4.11.0 -f nfs-csi-driver-values.yaml
+# kubectl --namespace=kube-system get pods --selector="app.kubernetes.io/instance=csi-driver-nfs" --watch
+# kubectl get sc
+# kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/deploy/example/deployment.yaml
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nfs-server
+  labels:
+    app: nfs-server
+spec:
+  selector:
+    matchLabels:
+      app: nfs-server
+  serviceName: "nfs-server"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nfs-server
+    spec:
+      nodeName: kind-control-plane
+      containers:
+      - name: nfs-server
+        image: openebs/nfs-server-alpine:0.10.0
+        ports:
+        - containerPort: 2049
+          name: nfs-server
+        volumeMounts:
+        - name: data
+          mountPath: /nfsroot
+        env:
+        - name: TZ
+          value: 'America/Sao_Paulo'
+        - name: CUSTOM_EXPORTS_CONFIG
+          value: '/nfsroot *(fsid=0,rw,async,no_subtree_check,root_squash,anonuid=65534,anongid=65534)'
+        - name: SHARED_DIRECTORY
+          value: '/nfsroot'
+        - name: FILEPERMISSIONS_UID
+          value: '65534'
+        - name: FILEPERMISSIONS_GID
+          value: '65534'
+        - name: FILEPERMISSIONS_MODE
+          value: '775'
+        securityContext:
+          privileged: true
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: nfs-server
+  name: nfs-server
+spec:
+  type: NodePort
+  selector:
+    app: nfs-server
+  ports:
+  - name: nfs-server
+    port: 2049
+    protocol: TCP
+    nodePort: 32049
