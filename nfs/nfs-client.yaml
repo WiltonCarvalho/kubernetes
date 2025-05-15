@@ -15,15 +15,12 @@ spec:
   selector:
     matchLabels:
       app: nfs-client
-  serviceName: "nfs-client"
   replicas: 1
   template:
     metadata:
       labels:
         app: nfs-client
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: k1
       containers:
       - name: nfs-client
         image: oraclelinux:8
