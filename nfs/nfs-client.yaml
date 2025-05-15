@@ -4,6 +4,7 @@
 # df -h /mnt/
 # touch /mnt/nfs.txt
 # umount /mnt
+# sudo find /var/snap/microk8s/common/default-storage -name nfs.txt
 ---
 apiVersion: apps/v1
 kind: StatefulSet
