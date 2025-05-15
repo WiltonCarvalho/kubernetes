@@ -2,7 +2,7 @@
 # kubectl exec -it nfs-client-0 -- bash
 # mount -t nfs -o nosuid,resvport,sec=sys,nolock nfs-server-0.nfs-server.default.svc:/ /mnt
 # df -h /mnt/
-# touch /mnt/test.txt
+# touch /mnt/nfs.txt
 # umount /mnt
 ---
 apiVersion: apps/v1
