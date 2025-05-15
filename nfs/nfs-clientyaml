@@ -1,0 +1,59 @@
+# kubectl apply -f https://raw.githubusercontent.com/WiltonCarvalho/kubernetes/refs/heads/main/nfs/nfs-client.yaml
+# kubectl exec -it nfs-client-0 -- bash
+# mount -t nfs -o nosuid,resvport,sec=sys,nolock nfs-client-0.nfs-client.default.svc:/ /mnt
+# df -h /mnt/
+# touch /mnt/test.txt
+# umount /mnt
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nfs-client
+  labels:
+    app: nfs-client
+spec:
+  selector:
+    matchLabels:
+      app: nfs-client
+  serviceName: "nfs-client"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nfs-client
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: k1
+      containers:
+      - name: nfs-client
+        image: oraclelinux:8
+        command:
+        - sh
+        - -c
+        - |
+          dnf -y install nfs-utils
+          cleanup() {
+              echo "Received SIGTERM, performing cleanup..."
+              # Add your cleanup tasks here (e.g., stopping services, saving state)
+              # Example:
+              # kill -TERM "$child_pid" 2>/dev/null
+              # wait "$child_pid" 2>/dev/null
+              echo "Cleanup complete, exiting."
+              exit 0
+          }
+          # Set trap for SIGTERM
+          trap cleanup SIGTERM
+          # Your main process or command here
+          echo "Container running..."
+          # Example: Start a process and store its PID
+          # your_process &
+          # child_pid=$!
+          # Keep container running (replace with your actual process)
+          while true; do
+              sleep 1
+          done
+        env:
+        - name: TZ
+          value: 'America/Sao_Paulo'
+        securityContext:
+          privileged: true
