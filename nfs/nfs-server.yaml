@@ -4,7 +4,9 @@
 # mount -t nfs -o nosuid,resvport,sec=sys,nolock nfs-server-0.nfs-server.default.svc:/ /mnt
 # df -h /mnt/
 # mkdir --mode=775 /mnt/test
+# touch /mnt/nfs.txt
 # umount /mnt
+# sudo find /var/snap/microk8s/common/default-storage -name nfs.txt
 # helm repo add csi-driver-nfs https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
 # curl -fsSL https://raw.githubusercontent.com/WiltonCarvalho/kubernetes/refs/heads/main/nfs/nfs-csi-driver-values.yaml -o nfs/nfs-csi-driver-values.yaml
 # helm upgrade --install csi-driver-nfs csi-driver-nfs/csi-driver-nfs --namespace kube-system --version v4.11.0 -f nfs/nfs-csi-driver-values.yaml \
@@ -12,6 +14,7 @@
 # kubectl --namespace=kube-system get pods --selector="app.kubernetes.io/instance=csi-driver-nfs" --watch
 # kubectl get sc
 # kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/deploy/example/deployment.yaml
+# sudo find /var/snap/microk8s/common/default-storage -name outfile
 ---
 apiVersion: apps/v1
 kind: StatefulSet
