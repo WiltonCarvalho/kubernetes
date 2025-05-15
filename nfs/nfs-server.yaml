@@ -6,8 +6,9 @@
 # mkdir --mode=775 /mnt/test
 # umount /mnt
 # helm repo add csi-driver-nfs https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
-# curl -fsSL https://raw.githubusercontent.com/WiltonCarvalho/kubernetes/refs/heads/main/nfs/nfs-csi-driver-values.yaml -o nfs-csi-driver-values.yaml
-# helm upgrade --install csi-driver-nfs csi-driver-nfs/csi-driver-nfs --namespace kube-system --version v4.11.0 -f nfs-csi-driver-values.yaml
+# curl -fsSL https://raw.githubusercontent.com/WiltonCarvalho/kubernetes/refs/heads/main/nfs/nfs-csi-driver-values.yaml -o nfs/nfs-csi-driver-values.yaml
+# helm upgrade --install csi-driver-nfs csi-driver-nfs/csi-driver-nfs --namespace kube-system --version v4.11.0 -f nfs/nfs-csi-driver-values.yaml \
+# --set kubeletDir=/var/snap/microk8s/common/var/lib/kubelet
 # kubectl --namespace=kube-system get pods --selector="app.kubernetes.io/instance=csi-driver-nfs" --watch
 # kubectl get sc
 # kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/deploy/example/deployment.yaml
@@ -29,7 +30,8 @@ spec:
       labels:
         app: nfs-server
     spec:
-      nodeName: kind-control-plane
+      nodeSelector:
+        kubernetes.io/hostname: k1
       containers:
       - name: nfs-server
         image: openebs/nfs-server-alpine:0.10.0

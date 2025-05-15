@@ -1,12 +1,14 @@
 # helm repo add jetstack https://charts.jetstack.io
 # helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.17.1 --set crds.enabled=true --set extraArgs="{--dns01-recursive-nameservers-only,--dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53}"
-# cloudflare_api_token="xxxxxxxxxxxxxxxxxxxxx"
+# cloudflare_api_token="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# kubectl create secret generic cloudflare-api-token --namespace cert-manager --from-literal=api-token="$cloudflare_api_token"
+# cloudflare_api_token=$(kubectl -n cert-manager get secret cloudflare-api-token -o jsonpath="{.data['api-token']}" | base64 -d)
 # account_id=$(curl -s "https://api.cloudflare.com/client/v4/accounts" --header "Authorization: Bearer $cloudflare_api_token" | jq -r '.result[].id')
 # curl "https://api.cloudflare.com/client/v4/accounts/$account_id/tokens/verify" --header "Authorization: Bearer $cloudflare_api_token"
 # ZONES: curl -s "https://api.cloudflare.com/client/v4/zones" -H "Authorization: Bearer $cloudflare_api_token" | jq -r '.result[] | [.id, .name] | join(" ")'
-# curl "https://api.cloudflare.com/client/v4/zones/3b00f444810e99fd1ebd9b1e2bdf905a" -H "Authorization: Bearer $cloudflare_api_token"
-# curl "https://api.cloudflare.com/client/v4/zones/3b00f444810e99fd1ebd9b1e2bdf905a/dns_records" -H "Authorization: Bearer $cloudflare_api_token"
-# kubectl create secret generic cloudflare-api-token --namespace cert-manager --from-literal=api-token="$cloudflare_api_token"
+# zone_id=$(curl -s "https://api.cloudflare.com/client/v4/zones" -H "Authorization: Bearer $cloudflare_api_token" | jq -r '.result[0].id')
+# curl "https://api.cloudflare.com/client/v4/zones/$zone_id" -H "Authorization: Bearer $cloudflare_api_token"
+# curl "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" -H "Authorization: Bearer $cloudflare_api_token"
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer

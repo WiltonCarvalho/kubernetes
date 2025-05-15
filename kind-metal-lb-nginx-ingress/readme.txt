@@ -17,30 +17,14 @@ sudo chmod +x /usr/local/bin/yq
 KUSTOMIZE_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/kustomize/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION#kustomize/}_linux_amd64.tar.gz | sudo tar zxvf - -C "/usr/local/bin"
 
-cat <<'EOF'>> ~/.bashrc
-test -x /usr/local/bin/kubectl && source <(kubectl completion bash)
-test -x /usr/local/bin/kubectl && alias k=kubectl
-test -x /usr/local/bin/kubectl && complete -o default -F __start_kubectl k
-test -x /usr/local/bin/helm && source <(helm completion bash)
-test -x /usr/local/bin/kubectx && alias kx=kubectx
-EOF
-
-cat <<'EOF'>> ~/.zshrc
-test -x /usr/local/bin/kubectl && source <(kubectl completion zsh)
-test -x /usr/local/bin/kubectl && alias k=kubectl
-test -x /usr/local/bin/kubectl && compdef k=kubectl
-test -x /usr/local/bin/helm && source <(helm completion zsh)
-test -x /usr/local/bin/kubectx && alias kx=kubectx
-EOF
-
 KIND_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 sudo curl -fsSL https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION/kind-linux-amd64 -o /usr/local/bin/kind
 sudo chmod +x /usr/local/bin/kind
 
 curl -L# https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-nginx-ingress/kind-config.yaml -o ~/kind-config.yaml
 
-kind delete cluster
-docker network rm kind
+kind delete cluster || true
+docker network rm kind || true
 docker network create kind --subnet 172.31.0.0/16
 
 K8S_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
