@@ -32,10 +32,10 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: default-ssl-cert
+  name: default-ssl-cert-letsencrypt
   namespace: default
 spec:
-  secretName: default-ssl-secret
+  secretName: default-ssl-secret-letsencrypt
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -43,3 +43,10 @@ spec:
   dnsNames:
   - "wiltoncarvalho.com"
   - "*.wiltoncarvalho.com"
+  privateKey:
+    rotationPolicy: Always
+  keystores:
+    pkcs12:
+      create: true
+      profile: Modern2023
+      password: changeit
