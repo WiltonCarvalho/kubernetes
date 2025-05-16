@@ -9,24 +9,25 @@
 # zone_id=$(curl -s "https://api.cloudflare.com/client/v4/zones" -H "Authorization: Bearer $cloudflare_api_token" | jq -r '.result[0].id')
 # curl "https://api.cloudflare.com/client/v4/zones/$zone_id" -H "Authorization: Bearer $cloudflare_api_token"
 # curl "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" -H "Authorization: Bearer $cloudflare_api_token"
+#
+# gcloud services enable publicca.googleapis.com
+# gcloud publicca external-account-keys create
+# kubectl -n cert-manager create secret generic googleservices-eab-secret --from-literal b64MacKey=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: google-services-prod
+  name: googleservices-prod
   namespace: cert-manager
 spec:
   acme:
     email: wiltonweb@gmail.com
     # GTS ACME production endpoint
     server: https://dv.acme-v02.api.pki.goog/directory
-    # gcloud services enable publicca.googleapis.com
-    # gcloud publicca external-account-keys create
-    # kubectl create secret generic eab-secret --from-literal b64MacKey=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     externalAccountBinding:
       keyID: 24ffa02ff4bb3cd17ce8753b722102cf
       keySecretRef:
-        name: eab-secret
+        name: googleservices-eab-secret
         key: b64MacKey
     privateKeySecretRef:
       name: gts-acme-account-key
@@ -42,13 +43,13 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: default-ssl-cert-google-services
+  name: default-ssl-cert-googleservices
   namespace: default
 spec:
-  secretName: default-ssl-secret-google-services
+  secretName: default-ssl-secret-googleservices
   issuerRef:
     kind: ClusterIssuer
-    name: google-services-prod
+    name: googleservices-prod
   commonName: wiltoncarvalho.com
   dnsNames:
   - "wiltoncarvalho.com"

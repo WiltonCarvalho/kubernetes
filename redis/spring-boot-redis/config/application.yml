@@ -1,13 +1,13 @@
 #### Spring 2.x ####
-# spring:
-#   redis:
-#     password: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
-#     #host: localhost
-#     #port: 6379
-#     cluster:
-#       nodes:
-#       - valkey-cluster.valkey.svc.cluster.local:6379
-#       max-redirects: 3
+spring:
+  redis:
+    #password: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
+    #host: localhost
+    #port: 6379
+    cluster:
+      nodes:
+      - dev-redis.riocardmais.com.br:6379
+      max-redirects: 3
 #     ssl: true
 #     ssl:
 #       trust-store: classpath:redis-ca-cert.jks
@@ -17,18 +17,18 @@ management:
   endpoint:
     health:
       showDetails: always
-spring:
-  data:
-    redis:
-      password: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
-      #host: localhost
-      #port: 6379
-      cluster:
-        nodes:
-        - redis-cluster.redis.svc.cluster.local:6379
-        max-redirects: 3
-      ssl:
-        enabled: true
+# spring:
+#   data:
+#     redis:
+#       #password: of1i7teWchAD1Z0vcE6RA30mvW1OJw+2GQtk8JZrYq0=
+#       #host: localhost
+#       #port: 6379
+#       cluster:
+#         nodes:
+#         - dev-redis.riocardmais.com.br:6379
+#         max-redirects: 3
+#       ssl:
+#         enabled: false
   #       bundle: redis-bundle
   # ssl:
   #   bundle:

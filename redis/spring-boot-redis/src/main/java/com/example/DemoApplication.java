@@ -34,27 +34,6 @@ public class DemoApplication implements CommandLineRunner {
         LOGGER.info("############################################");
     }
 
-    @Scheduled(fixedRate = 3000)
-    public void manageRandomKey() {
-        // Generate a random key using UUID
-        String randomKey = "random:" + UUID.randomUUID().toString();
-        String randomValue = "value-" + System.currentTimeMillis();
-
-        // Create the key
-        redisTemplate.opsForValue().set(randomKey, randomValue);
-        LOGGER.info("Created key: {} with value: {}", randomKey, randomValue);
-
-        // Log all keys before deletion
-        Set<String> currentKeys = getKeys();
-        LOGGER.info("############################################");
-        LOGGER.info("All keys before deletion: {}", currentKeys);
-        LOGGER.info("############################################");
-
-        // Delete the key
-        redisTemplate.delete(randomKey);
-        LOGGER.info("Deleted key: {}", randomKey);
-    }
-
     public Set<String> getKeys() {
         return redisTemplate.keys("*");
     }

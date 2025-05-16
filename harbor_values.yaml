@@ -1,0 +1,65 @@
+# Admin password for Harbor
+adminPassword: "Ahp5cho2Ko6saiPureX1Phohxoo0Ohch"
+
+# Exposure type configuration
+exposureType: "ingress"
+
+# External URL for Harbor
+externalURL: "https://cce-harbor.riocardti.com.br"
+
+# Ingress configuration for the core service
+ingress:
+  core:
+    hostname: "cce-harbor.riocardti.com.br"
+    annotations:
+      kubernetes.io/ingress.class: "nginx-private"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"  # Quoted string to ensure correct type
+    tls: true
+    tlsSecretName: "harbor-tls-secret"  # Name of the existing TLS secret
+
+# Registry configuration
+registry:
+  relativeurls: true
+
+# Trivy configuration (vulnerability scanner)
+trivy:
+  extraEnvVars:
+    - name: "TRIVY_DB_REPOSITORY"
+      value: "public.ecr.aws/aquasecurity/trivy-db"
+    - name: "TRIVY_JAVA_DB_REPOSITORY"
+      value: "public.ecr.aws/aquasecurity/trivy-java-db"
+
+persistence:
+  persistentVolumeClaim:
+    registry:
+      size: "10Gi"
+
+# Resource preset overrides (set to 'none' to disable defaults)
+certificateVolume:
+  resourcesPreset: "none"
+volumePermissions:
+  resourcesPreset: "none"
+nginx:
+  resourcesPreset: "none"
+portal:
+  resourcesPreset: "none"
+core:
+  resourcesPreset: "none"
+jobservice:
+  resourcesPreset: "none"
+registry:
+  server:
+    resourcesPreset: "none"
+  controller:
+    resourcesPreset: "none"
+trivy:
+  resourcesPreset: "none"
+exporter:
+  resourcesPreset: "none"
+postgresql:
+  primary:
+    resourcesPreset: "none"
+redis:
+  master:
+    resourcesPreset: "none"

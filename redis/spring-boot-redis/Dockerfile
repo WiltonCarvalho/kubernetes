@@ -29,6 +29,6 @@ RUN keytool -cacerts \
 -importcert -alias "redis test ca" -file ca.crt \
 -storepass changeit -noprompt
 USER 999:0
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
-#ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
+#ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
 

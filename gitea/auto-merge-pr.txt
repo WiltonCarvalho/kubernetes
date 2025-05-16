@@ -1,0 +1,53 @@
+
+```
+TOKEN=c3211ca6fd1c43b61c4d3021979a0c538d3d84ee
+REPO=$(git config --get remote.origin.url | cut -d '/' -f 4-5 | cut -d '.' -f 1)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+curl -s -X POST \
+  -H "Authorization: token $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"head\": \"$BRANCH\", \"base\": \"main\", \"title\": \"Feature Title\", \"body\": \"Description of the changes\"}" \
+  "https://gitea.riocardti.com.br/api/v1/repos/$REPO/pulls" | \
+  jq -r .number | read -r PR_NUMBER
+
+curl -X POST \
+  -H "Authorization: token $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"Do\": \"merge\", \"MergeStyle\": \"merge\", \"Message\": \"Automated merge message\", \"merge_when_checks_succeed\": true}" \
+  https://gitea.riocardti.com.br/api/v1/repos/$REPO/pulls/$PR_NUMBER/merge
+```
+
+```
+import requests
+
+def schedule_merge(pr_number, repo_owner, repo_name, token):
+    url = f"http://localhost:3000/api/v1/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/merge"
+    
+    # Check if PR has enough approvals and checks passed (you would replace this with actual API calls)
+    if has_enough_approvals(pr_number) and all_checks_passed(pr_number):
+        headers = {
+            "Authorization": f"token {token}",
+            "Content-Type": "application/json"
+        }
+        data = '{"Do": "merge", "MergeStyle": "merge", "Message": "Automated merge message"}'
+        response = requests.post(url + "?merge_when_checks_succeed=true", headers=headers, data=data)
+        if response.status_code == 200:
+            print("Merge scheduled successfully")
+        else:
+            print("Error scheduling merge:", response.text)
+    else:
+        print("PR does not meet merge criteria")
+
+# Placeholder functions for checking approvals and checks
+def has_enough_approvals(pr_number):
+    # Implement API call to check approvals
+    pass
+
+def all_checks_passed(pr_number):
+    # Implement API call to check statuses
+    pass
+
+# Usage
+schedule_merge(3, "GitOps", "alpine", "15a0d2e6154df65c7ad2baa20ba1c047029ee9c3")
+```

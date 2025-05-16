@@ -1,0 +1,35 @@
+mode: standalone
+existingSecret: minio-console-cred
+buckets:
+  - name: tempo-traces
+  - name: loki-chunks
+  - name: loki-ruler
+  - name: loki-admin
+  - name: gitlab-ci
+persistence:
+  enabled: true
+  size: 10Gi
+deploymentUpdate:
+  type: Recreate
+replicas: 1
+resources:
+  requests:
+    memory: 512Mi
+consoleService:
+  type: ClusterIP
+  port: "80"
+consoleIngress:
+  enabled: true
+  ingressClassName: nginx
+  path: /
+  hosts:
+    - minio-console.172.31.255.254.sslip.io
+service:
+  type: ClusterIP
+  port: "80"
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  path: /
+  hosts:
+    - minio.172.31.255.254.sslip.io

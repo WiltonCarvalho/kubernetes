@@ -1,0 +1,64 @@
+gitlabUrl: https://gitlab.wiltoncarvalho.com
+unregisterRunners: true
+replicas: 2
+rbac:
+  create: true
+serviceAccount:
+  create: true
+
+image:
+  registry: docker.io
+  image: gitlab/gitlab-runner
+  tag: alpine-v17.4.0
+  # skopeo list-tags docker://docker.io/gitlab/gitlab-runner | jq -r '.Tags[]' | grep 17.4.0
+  # skopeo inspect --tls-verify=false --raw docker://docker.io/gitlab/gitlab-runner:alpine-v17.4.0 | jq '.manifests[].platform.architecture'
+
+strategy:
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 1
+  type: RollingUpdate
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - gitlab-runner
+        topologyKey: kubernetes.io/hostname
+      weight: 1
+
+runners:
+  secret: gitlab-runner-secret
+  config: |
+    [[runners]]
+      environment = [
+        "LC_ALL=en_US.UTF-8",
+        "LANG=C.UTF-8",
+        "LANGUAGE=en_US:en"
+      ]
+      [runners.kubernetes]
+        image = "docker:24-git"
+        privileged = true
+        helper_image = "docker.io/gitlab/gitlab-runner-helper:arm64-v17.4.0"
+        # skopeo list-tags docker://docker.io/gitlab/gitlab-runner-helper | jq -r '.Tags[]'
+        #cpu_request = "2"
+        #memory_request = "4Gi"
+        [[runners.kubernetes.volumes.empty_dir]]
+          name = "dind-storage"
+          mount_path = "/var/lib/docker"
+      [runners.cache]
+        Type = "s3"
+        Shared = true
+        [runners.cache.s3]
+          ServerAddress = "minio"
+          BucketName = "gitlab-ci"
+          BucketLocation = "us-east-1"
+          Insecure = true
+          AuthenticationType = "access-key"
+  cache:
+    secretName: gitlab-runner-s3-secret

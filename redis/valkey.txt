@@ -7,9 +7,9 @@ kind create cluster --image kindest/node:v1.30.8 --config ~/kind-config.yaml
 # Deploy Cluster Statefulset
 kubectl create ns valkey
 
-kubectl apply -k redis/certs
+kubectl apply -k valkey/certs
 
-kubectl apply -f redis/valkey-cluster.yaml
+kubectl apply -f valkey/valkey-cluster.yaml
 
 kubectl -n valkey get pod
 
@@ -55,7 +55,7 @@ for x in $(seq 0 2); do valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-maste
 exit
 
 # Locust load + failover test
-kubectl apply -f redis/valkey-client.yaml
+kubectl apply -f valkey/valkey-client.yaml
 kubectl -n valkey get pod
 
 kubectl -n valkey port-forward valkey-client-0 8089:8089
@@ -76,7 +76,7 @@ kubectl -n valkey get pods
 kubectl -n valkey logs valkey-replicas-0
 
 # Re-apply to recreate the master node 0
-kubectl apply -f redis/valkey-cluster.yaml
+kubectl apply -f valkey/valkey-cluster.yaml
 
 # Watch the master node 0 re-taking the master role
 kubectl -n valkey logs valkey-masters-0
@@ -86,7 +86,7 @@ kubectl -n valkey logs valkey-masters-0
 kubectl apply -f registry.yaml
 kubectl port-forward services/registry 5000
 
-cd redis/spring-boot-redis/
+cd spring-boot-redis/
 docker-compose build --progress=plain
 docker tag docker.io/library/spring-boot-redis-app localhost:5000/test
 docker push localhost:5000/test
@@ -109,8 +109,8 @@ valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-0.valkey-masters.valk
 valkey-cli --tls --cacert /tls/ca.crt -c -h valkey-masters-0.valkey-masters.valkey.svc.cluster.local ttl xxxxx
 
 # Delete Lab
-kubectl delete -f redis/valkey-client.yaml
-kubectl delete -f redis/valkey-cluster.yaml
+kubectl delete -f valkey/valkey-client.yaml
+kubectl delete -f valkey/valkey-cluster.yaml
 kubectl -n valkey delete pvc data-valkey-masters-0   data-valkey-masters-2   data-valkey-replicas-1 data-valkey-masters-1   data-valkey-replicas-0  data-valkey-replicas-2
 
 kubectl delete ns valkey

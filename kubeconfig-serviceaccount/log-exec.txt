@@ -1,0 +1,46 @@
+kubectl -n kube-system create serviceaccount log-exec-portforward-sa
+
+kubectl create clusterrolebinding log-exec-portforward-clusterrolebinding --clusterrole=log-exec-portforward-role --serviceaccount=kube-system:log-exec-portforward-sa
+
+cat <<'EOF'> log-exec-portforward-sa-token.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: log-exec-portforward-sa-token
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: log-exec-portforward-sa
+type: kubernetes.io/service-account-token
+EOF
+
+kubectl apply -f log-exec-portforward-sa-token.yaml
+
+KUBE_CA=$(kubectl get cm kube-root-ca.crt -o jsonpath="{['data']['ca\.crt']}" | base64 -w 0)
+KUBE_ENDPOINT=$(kubectl get endpoints kubernetes -o jsonpath='{.subsets[].addresses[].ip}')
+TOKEN=$(kubectl -n kube-system get secret log-exec-portforward-sa-token -o jsonpath='{.data.token}' | base64 --decode)
+
+docker run -it --rm --net=host -e KUBE_CA=$KUBE_CA -e KUBE_ENDPOINT=$KUBE_ENDPOINT -e TOKEN=$TOKEN alpine ash
+apk add kubectl
+
+echo $KUBE_CA | base64 -d  > ca.crt
+
+kubectl config set-cluster dev \
+  --certificate-authority ca.crt --embed-certs=true \
+  --server https://$KUBE_ENDPOINT:6443
+
+kubectl config set-credentials log-exec-portforward-sa --token=$TOKEN
+
+kubectl config set-context dev --cluster=dev --user=log-exec-portforward-sa
+
+kubectl config use-context dev
+
+kubectl get pods
+
+kubectl run httpd --image httpd:alpine --port 80 --labels app=httpd
+
+POD=$(kubectl get pod --selector app=httpd -o jsonpath='{.items[].metadata.name}')
+kubectl port-forward $POD 8080:80
+
+curl -s http://localhost:8080
+
+kubectl delete pod httpd

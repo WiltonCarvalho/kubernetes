@@ -41,3 +41,7 @@ module "argocd" {
   source = "./91-argocd"
   depends_on = [module.kube-prometheus-stack]
 }
+# terraform apply -target module.minio --auto-approve
+module "minio" {
+  source = "./92-minio"
+}

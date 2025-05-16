@@ -24,32 +24,31 @@ spec:
     spec:
       containers:
       - name: nfs-client
-        image: oraclelinux:8
+        image: nginx:stable
         command:
         - sh
         - -c
         - |
-          dnf -y install nfs-utils
-          cleanup() {
-              echo "Received SIGTERM, performing cleanup..."
-              # Add your cleanup tasks here (e.g., stopping services, saving state)
-              # Example:
-              # kill -TERM "$child_pid" 2>/dev/null
-              # wait "$child_pid" 2>/dev/null
-              echo "Cleanup complete, exiting."
-              exit 0
-          }
-          # Set trap for SIGTERM
-          trap cleanup SIGTERM
-          # Your main process or command here
-          echo "Container running..."
-          # Example: Start a process and store its PID
-          # your_process &
-          # child_pid=$!
-          # Keep container running (replace with your actual process)
-          while true; do
-              sleep 1
-          done
+          #dnf -y install nfs-utils
+          mkdir /tmp/html
+          cd /tmp/html
+          echo ok > index.html
+          echo "#!/bin/bash" > /tmp/py.sh
+          echo "set -ex" >> /tmp/py.sh
+          echo "pyvenv-3.6 test_env 2>/dev/null" > /tmp/py.sh
+          echo "source test_env/bin/activate" >> /tmp/py.sh
+          echo "export PYTHONUNBUFFERED=1" >> /tmp/py.sh
+          echo "exec python -m http.server" >> /tmp/py.sh
+          chmod +x /tmp/py.sh
+          ln -sf /proc/self/fd/1 /tmp/stdout.log
+          ln -sf /proc/self/fd/2 /tmp/stderr.log
+          >/tmp/stdout.log 2>/tmp/stderr.log exec /usr/sbin/nginx -g "daemon off;" &
+          pid="$!"
+          echo "[ Started PID $pid ]"
+          trap "echo '[ Stopping PID $pid ]' && kill -quit $pid && wait $pid" INT TERM WINCH QUIT
+          wait $pid
+          return_code="$?"
+          exit $return_code
         env:
         - name: TZ
           value: 'America/Sao_Paulo'

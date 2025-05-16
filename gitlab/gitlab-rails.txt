@@ -1,0 +1,1 @@
+gitlab-rails runner "user = User.find_by_username('root'); if user; puts user.personal_access_tokens.map { |t| { id: t.id, name: t.name, scopes: t.scopes, expires_at: t.expires_at, last_used_at: t.last_used_at } }.to_yaml; else; puts 'User not found'; end"

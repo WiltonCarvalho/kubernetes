@@ -1,0 +1,12 @@
+tenant:
+  name: myminio
+  pools:
+    - servers: 4
+      volumesPerServer: 4
+      size: 10Gi
+  certificate:
+    requestAutoCert: false
+  prometheusOperator: false
+  env:
+    - name: MINIO_SERVER_URL
+      value: "http://myminio.minio-tenant.svc.cluster.local:9000"

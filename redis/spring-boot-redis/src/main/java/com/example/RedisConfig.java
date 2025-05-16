@@ -41,6 +41,8 @@ public class RedisConfig {
         // Apply topology refresh to cluster client options
         ClusterClientOptions clusterClientOptions = ClusterClientOptions.builder()
             .topologyRefreshOptions(topologyRefreshOptions)
+            //.protocolVersion(io.lettuce.core.protocol.ProtocolVersion.RESP2) // Force RESP2
+            .autoReconnect(true) // Optional: ensure reconnection behavior
             .build();
 
         // Build Lettuce client configuration with topology refresh
@@ -48,7 +50,6 @@ public class RedisConfig {
             .clientOptions(clusterClientOptions)       // Set client options first
             .commandTimeout(Duration.ofSeconds(10))    // Set timeout before SSL
             .readFrom(ReadFrom.REPLICA_PREFERRED)      // Then read preference
-            .useSsl()                                  // SSL last
             .build();
 
         // Create and return the connection factory

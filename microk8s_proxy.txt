@@ -1,0 +1,36 @@
+cat <<'EOF'> /tmp/nginx.conf
+user  nginx;
+worker_processes  auto;
+error_log  /var/log/nginx/error.log notice;
+pid        /run/nginx.pid;
+events {
+    worker_connections  1024;
+}
+stream {
+    upstream k8s-api {
+        server 192.168.122.220:16443;
+        server 192.168.122.35:16443;
+        server 192.168.122.28:16443;
+    }
+    server {
+        listen 16443;
+        proxy_pass k8s-api;
+    }
+    log_format proxy '$remote_addr [$time_local] '
+                     '$protocol $status $bytes_sent $bytes_received '
+                     '$session_time "$upstream_addr" '
+                     '"$upstream_bytes_sent" "$upstream_bytes_received" "$upstream_connect_time"';
+
+    access_log /var/log/nginx/access.log proxy buffer=32k flush=5s;
+}
+EOF
+
+docker run -d --rm --name nginx -p 16443:16443 -v /tmp/nginx.conf:/etc/nginx/nginx.conf nginx:stable
+
+cp ~/.kube/config ~/.kube/config.bak
+
+ssh ubuntu@192.168.122.220 -i ~/.ssh/id_rsa 'sudo microk8s config -l' > ~/.kube/config.microk8s
+
+KUBECONFIG=$HOME/.kube/config_dev:$HOME/.kube/config_hml:$HOME/.kube/config_prod:~/.kube/config.microk8s kubectl config view --flatten > $HOME/.kube/config
+
+cp ~/.kube/config.new ~/.kube/config

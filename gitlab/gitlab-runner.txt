@@ -1,0 +1,28 @@
+# Create the Runner Token
+curl -fsSL -X POST -H 'Private-token: KoohooX0Eisoo6su' \
+  'https://gitlab.wiltoncarvalho.com/api/v4/user/runners?runner_type=instance_type&description=kubernetes-runner' | \
+  jq .token
+
+# Add the Runner Token the a Secret
+kubectl create secret generic gitlab-runner-secret \
+--from-literal=runner-registration-token='' \
+--from-literal=runner-token='glrt-LDbc6CryD6wd-5_Ww_MJ'
+
+# Create the Runner Cache S3 Secret
+kubectl create secret generic gitlab-runner-s3-secret \
+--from-literal=accesskey='root' \
+--from-literal=secretkey='root@123'
+
+# Install the Runner
+helm repo add gitlab https://charts.gitlab.io
+
+helm upgrade --install gitlab-runner gitlab/gitlab-runner -f runner-values.yaml
+
+cp gitlab/gitlab-ci.yml /tmp/alpine/.gitlab-ci.yml
+cd /tmp/alpine
+git add .gitlab-ci.yml
+git commit -m "gitlab ci"
+git push
+cd /work
+
+firefox http://gitlab.172.19.0.1.sslip.io

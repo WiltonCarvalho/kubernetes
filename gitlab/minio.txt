@@ -1,0 +1,35 @@
+# Minio Root User
+kubectl create secret generic minio-console-cred \
+--from-literal=rootUser='root' \
+--from-literal=rootPassword='root@123'
+
+# Minio Access Key
+kubectl create secret generic minio-s3-access-key \
+--from-literal=AWS_ACCESS_KEY_ID='root' \
+--from-literal=AWS_SECRET_ACCESS_KEY='root@123'
+
+# Minio
+helm repo add minio https://charts.min.io
+helm upgrade --install minio minio/minio -f minio-values.yaml --version 5.4.0
+google-chrome --incognito http://minio-console.172.31.255.254.sslip.io
+
+# Test with AWS CLI
+kubectl run -it --rm aws-cli \
+  --env AWS_ACCESS_KEY_ID='root' \
+  --env AWS_SECRET_ACCESS_KEY='root@123' \
+  --env AWS_ENDPOINT_URL_S3='http://minio' \
+  --image=public.ecr.aws/aws-cli/aws-cli \
+  --command -- bash
+
+docker run -it --rm --entrypoint= \
+  -e AWS_ACCESS_KEY_ID='root' \
+  -e AWS_SECRET_ACCESS_KEY='root@123' \
+  -e AWS_ENDPOINT_URL_S3='http://minio.172.31.255.254.sslip.io' \
+  public.ecr.aws/aws-cli/aws-cli bash
+
+
+aws s3 ls
+aws s3 mb s3://test
+echo test > test.txt
+aws s3 cp test.txt s3://test/
+aws s3 ls s3://test/

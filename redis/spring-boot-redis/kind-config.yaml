@@ -1,0 +1,49 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  apiServerAddress: "127.0.0.1"
+  apiServerPort: 6443
+  ipFamily: ipv4
+  dnsSearch: []
+nodes:
+- role: worker
+- role: worker
+- role: worker
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    apiServer:
+      extraArgs:
+        authorization-mode: "Node,RBAC"
+        service-account-issuer: "kubernetes.default.svc"
+        service-account-signing-key-file: "/etc/kubernetes/pki/sa.key"
+      certSANs:
+      - "127.0.0.1"
+      - "172.17.0.1"
+      - "172.31.0.1"
+      - "192.168.122.1"
+      - "docker"
+  - |
+    kind: KubeProxyConfiguration
+    metricsBindAddress: "0.0.0.0"
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:32000"]
+    endpoint = ["http://localhost:32000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.172.31.255.201.sslip.io"]
+    endpoint = ["http://registry.172.31.255.201.sslip.io"]

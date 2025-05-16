@@ -1,0 +1,13 @@
+kind: Kustomization
+resources:
+- postgres.yaml
+- gitea.yaml
+secretGenerator:
+- name: gitea-postgres-env
+  envs:
+  - postgres.env
+- name: gitea-env
+  envs:
+  - gitea.env
+generatorOptions:
+  disableNameSuffixHash: true

@@ -1,0 +1,31 @@
+kind create cluster --image kindest/node:v1.32.3-crio --config ../kind/crio/kind-config.yaml
+
+docker pull quay.io/cilium/cilium:v1.17.4
+
+helm repo add cilium https://helm.cilium.io
+
+helm show values cilium/cilium > cilium.yaml
+
+helm upgrade --install cilium cilium/cilium --version 1.17.4 \
+    --namespace kube-system \
+    --set image.pullPolicy=IfNotPresent \
+    --set ipam.mode=kubernetes \
+    --set hubble.ui.enabled=true \
+    --set hubble.relay.enabled=true \
+    --set hubble.tls.enabled=false \
+    --set clustermesh.useAPIServer=true \
+    --set cluster.name=kind \
+    --set cluster.id=1
+
+METALLB_VERSION=$(curl -s https://api.github.com/repos/metallb/metallb/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/$METALLB_VERSION/config/manifests/metallb-native.yaml
+kubectl -n metallb-system get pod --watch
+
+kubectl apply -f https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-nginx-ingress/metallb-config.yaml
+kubectl -n metallb-system get ipaddresspools
+
+kubectl port-forward -n kube-system svc/hubble-relay 4245:80
+
+cilium connectivity test
+
+cilium hubble ui

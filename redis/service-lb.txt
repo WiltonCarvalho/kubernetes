@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-svc-0
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 10.136.0.50
+  externalTrafficPolicy: Local
+  selector:
+    statefulset.kubernetes.io/pod-name: redis-0
+  ports:
+  - port: 6379
+    targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-svc-1
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 10.136.0.51
+  externalTrafficPolicy: Local
+  selector:
+    statefulset.kubernetes.io/pod-name: redis-1
+  ports:
+  - port: 6379
+    targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-svc-2
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 10.136.0.52
+  externalTrafficPolicy: Local
+  selector:
+    statefulset.kubernetes.io/pod-name: redis-2
+  ports:
+  - port: 6379
+    targetPort: 6379

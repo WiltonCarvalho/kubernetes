@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sidecar-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-label-updater
+  namespace: default
+rules:
+- apiGroups: ["*"]
+  resources: ["pods"]
+  verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sidecar-rb
+  namespace: default
+roleRef:
+  name: pod-label-updater
+  kind: Role
+subjects:
+- kind: ServiceAccount
+  name: sidecar-sa
+  namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: your-deployment
+spec:
+  selector:
+    matchLabels:
+      app: your-app
+  template:
+    metadata:
+      labels:
+        app: your-app
+    spec:
+      serviceAccountName: sidecar-sa
+      containers:
+      - name: main-container
+        image: your-main-image
+      - name: sidecar-container
+        image: your-sidecar-image
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
