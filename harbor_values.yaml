@@ -1,34 +1,22 @@
 # Admin password for Harbor
-adminPassword: "Ahp5cho2Ko6saiPureX1Phohxoo0Ohch"
+adminPassword: "xxxxxxxxxxxxxxxxxxxxxxx"
 
 # Exposure type configuration
 exposureType: "ingress"
 
 # External URL for Harbor
-externalURL: "https://cce-harbor.riocardti.com.br"
+externalURL: "https://cce-harbor.wiltoncarvalho.com"
 
 # Ingress configuration for the core service
 ingress:
   core:
-    hostname: "cce-harbor.riocardti.com.br"
+    hostname: "cce-harbor.wiltoncarvalho.com"
     annotations:
       kubernetes.io/ingress.class: "nginx-private"
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/proxy-body-size: "0"  # Quoted string to ensure correct type
     tls: true
     tlsSecretName: "harbor-tls-secret"  # Name of the existing TLS secret
-
-# Registry configuration
-registry:
-  relativeurls: true
-
-# Trivy configuration (vulnerability scanner)
-trivy:
-  extraEnvVars:
-    - name: "TRIVY_DB_REPOSITORY"
-      value: "public.ecr.aws/aquasecurity/trivy-db"
-    - name: "TRIVY_JAVA_DB_REPOSITORY"
-      value: "public.ecr.aws/aquasecurity/trivy-java-db"
 
 persistence:
   persistentVolumeClaim:
@@ -53,8 +41,14 @@ registry:
     resourcesPreset: "none"
   controller:
     resourcesPreset: "none"
+  relativeurls: true
 trivy:
   resourcesPreset: "none"
+  extraEnvVars:
+    - name: "TRIVY_DB_REPOSITORY"
+      value: "public.ecr.aws/aquasecurity/trivy-db"
+    - name: "TRIVY_JAVA_DB_REPOSITORY"
+      value: "public.ecr.aws/aquasecurity/trivy-java-db"
 exporter:
   resourcesPreset: "none"
 postgresql:

@@ -1,17 +1,17 @@
 kubectl create namespace harbor-system
 
 kubectl create secret tls harbor-tls-secret \
-  --cert=../terraform/secrets/certs/riocardti.com.br.cer \
-  --key=../terraform/secrets/certs/riocardti.com.br.key \
+  --cert=../terraform/secrets/certs/wiltoncarvalho.com.cer \
+  --key=../terraform/secrets/certs/wiltoncarvalho.com.key \
   -n harbor-system
 
 helm upgrade --install harbor \
   --namespace harbor-system \
   --version 24.0.1 \
-  --set adminPassword=Ahp5cho2Ko6saiPureX1Phohxoo0Ohch \
+  --set adminPassword=xxxxxxxxxxxxxxxxx \
   --set exposureType=ingress \
-  --set externalURL=https://cce-harbor.riocardti.com.br \
-  --set ingress.core.hostname=cce-harbor.riocardti.com.br \
+  --set externalURL=https://cce-harbor.wiltoncarvalho.com \
+  --set ingress.core.hostname=cce-harbor.wiltoncarvalho.com \
   --set "ingress.core.annotations.kubernetes\.io/ingress\.class=nginx-private" \
   --set "ingress.core.annotations.nginx\.ingress\.kubernetes\.io/ssl-redirect=true" \
   --set "ingress.core.annotations.nginx\.ingress\.kubernetes\.io/proxy-body-size=\"0\"" \

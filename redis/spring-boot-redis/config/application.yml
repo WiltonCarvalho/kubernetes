@@ -6,7 +6,7 @@ spring:
     #port: 6379
     cluster:
       nodes:
-      - dev-redis.riocardmais.com.br:6379
+      - dev-redis.wiltoncarvalho.com:6379
       max-redirects: 3
 #     ssl: true
 #     ssl:
@@ -25,7 +25,7 @@ management:
 #       #port: 6379
 #       cluster:
 #         nodes:
-#         - dev-redis.riocardmais.com.br:6379
+#         - dev-redis.wiltoncarvalho.com:6379
 #         max-redirects: 3
 #       ssl:
 #         enabled: false
