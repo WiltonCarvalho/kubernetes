@@ -1,0 +1,22 @@
+git clone https://gitlab.com/gitlab-org/omnibus-gitlab.git
+cd omnibus-gitlab/docker
+TAG=$(git tag | sort -n | grep -v rc | grep ce | grep ^17 | sort -V | tail -1)
+git checkout $TAG
+
+RELEASE=$(echo $TAG | sed 's/+/-/')
+
+cat <<EOF> RELEASE
+RELEASE_PACKAGE=gitlab-ce
+RELEASE_VERSION=${RELEASE}
+DOWNLOAD_URL_amd64=https://packages.gitlab.com/gitlab/gitlab-ce/packages/ubuntu/jammy/gitlab-ce_${RELEASE}_amd64.deb/download.deb
+DOWNLOAD_URL_arm64=https://packages.gitlab.com/gitlab/gitlab-ce/packages/ubuntu/jammy/gitlab-ce_${RELEASE}_arm64.deb/download.deb
+EOF
+
+kubectl -n container-registry port-forward services/registry 5000
+
+docker build . --progress=plain -t omnibus-gitlab/gitlab-ce:${RELEASE}
+
+docker tag omnibus-gitlab/gitlab-ce:${RELEASE} localhost:5000/omnibus-gitlab/gitlab-ce:${RELEASE}
+docker push localhost:5000/omnibus-gitlab/gitlab-ce:${RELEASE}
+
+skopeo list-tags docker://localhost:5000/omnibus-gitlab/gitlab-ce --tls-verify=false | jq -r '.Tags[]'
